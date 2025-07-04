@@ -2,10 +2,14 @@ use log::error;
 use std::sync::Arc;
 
 use winit::{
-    application::ApplicationHandler, event::WindowEvent, event_loop::ActiveEventLoop,
+    application::ApplicationHandler,
+    event::{KeyEvent, WindowEvent},
+    event_loop::ActiveEventLoop,
+    keyboard::{KeyCode, PhysicalKey},
     window::WindowAttributes,
 };
 
+use crate::camera::Camera;
 use crate::renderer::Renderer;
 
 #[derive(Default)]
@@ -45,16 +49,28 @@ impl ApplicationHandler for AppState {
                 println!("The close button was pressed; stopping");
                 event_loop.exit();
             }
-            WindowEvent::RedrawRequested => match renderer.render() {
-                Ok(_) => {}
-                Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
-                    let size = renderer.get_window().inner_size();
-                    renderer.resize(size.width, size.height);
+            WindowEvent::RedrawRequested => {
+                renderer.update();
+                match renderer.render() {
+                    Ok(_) => {}
+                    Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {
+                        let size = renderer.get_window().inner_size();
+                        renderer.resize(size.width, size.height);
+                    }
+                    Err(e) => {
+                        log::error!("Unable to render {e}");
+                    }
                 }
-                Err(e) => {
-                    log::error!("Unable to render {e}");
-                }
-            },
+            }
+            WindowEvent::KeyboardInput {
+                event:
+                    KeyEvent {
+                        physical_key: PhysicalKey::Code(code),
+                        state,
+                        ..
+                    },
+                ..
+            } => renderer.handle_key(code, state, event_loop),
             _ => (),
         }
     }

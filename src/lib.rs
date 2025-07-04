@@ -1,12 +1,10 @@
 mod application;
+mod camera;
 mod renderer;
 
 use application::AppState;
-use wgpu::wgc::instance::RequestAdapterOptions;
 use winit::error::EventLoopError;
-use winit::event::WindowEvent;
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::{application::ApplicationHandler, window::Window};
 
 pub struct Game;
 
