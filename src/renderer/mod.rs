@@ -1,9 +1,11 @@
-mod vertex;
+mod model_instance;
+pub mod vertex;
 
-use nalgebra::{Point3, Vector3};
+use model_instance::{Instance, RawInstance};
+use nalgebra::{Matrix, Matrix4, Point3, Vector3};
 use std::sync::Arc;
 use vertex::Vertex;
-use wgpu::util::DeviceExt;
+use wgpu::util::{DeviceExt, RenderEncoder};
 
 use wgpu::{
     BindGroup, Buffer, Device, DeviceDescriptor, Queue, RenderPipeline, Surface,
@@ -13,52 +15,8 @@ use winit::window::Window;
 
 use crate::camera::Camera;
 use crate::camera::camera_uniform::CameraUniform;
-
-const VERTICES: &[Vertex] = &[
-    // Front face
-    Vertex {
-        position: [-0.5, -0.5, 0.5],
-        color: [1.0, 0.0, 0.0],
-    }, // 0
-    Vertex {
-        position: [0.5, -0.5, 0.5],
-        color: [0.0, 1.0, 0.0],
-    }, // 1
-    Vertex {
-        position: [0.5, 0.5, 0.5],
-        color: [0.0, 0.0, 1.0],
-    }, // 2
-    Vertex {
-        position: [-0.5, 0.5, 0.5],
-        color: [1.0, 1.0, 0.0],
-    }, // 3
-    // Back face
-    Vertex {
-        position: [-0.5, -0.5, -0.5],
-        color: [1.0, 0.0, 1.0],
-    }, // 4
-    Vertex {
-        position: [0.5, -0.5, -0.5],
-        color: [0.0, 1.0, 1.0],
-    }, // 5
-    Vertex {
-        position: [0.5, 0.5, -0.5],
-        color: [1.0, 1.0, 1.0],
-    }, // 6
-    Vertex {
-        position: [-0.5, 0.5, -0.5],
-        color: [0.0, 0.0, 0.0],
-    }, // 7
-];
-const INDICES: &[u16] = &[
-    // front
-    0, 1, 2, 2, 3, 0, // right
-    1, 5, 6, 6, 2, 1, // back
-    5, 4, 7, 7, 6, 5, // left
-    4, 0, 3, 3, 7, 4, // top
-    3, 2, 6, 6, 7, 3, // bottom
-    4, 5, 1, 1, 0, 4,
-];
+use crate::camera::light_uniform::PointLightUniform;
+use crate::mesh::loader::MeshLoader;
 
 pub struct Renderer {
     window: Arc<Window>,
@@ -74,6 +32,8 @@ pub struct Renderer {
     camera_uniform: CameraUniform,
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
+    point_light_bind_group: BindGroup,
+    instance_buffer: Buffer,
     is_surface_configured: bool,
 }
 
@@ -84,7 +44,9 @@ impl Renderer {
             ..Default::default()
         });
 
-        let num_indices = INDICES.len() as u32;
+        let mesh = MeshLoader::temp_load_mesh();
+
+        let num_indices = mesh.indices.len() as u32;
 
         let size = window.inner_size();
 
@@ -155,34 +117,28 @@ impl Renderer {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
 
-        let camera_bind_group_layout =
-            device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
-                    binding: 0,
-                    visibility: wgpu::ShaderStages::VERTEX,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Uniform,
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                }],
-                label: Some("camera_bind_group_layout"),
-            });
+        let camera_bind_group_layout = CameraUniform::create_bind_group_layout(&device);
 
-        let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &camera_bind_group_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: camera_buffer.as_entire_binding(),
-            }],
-            label: Some("camera_bind_group"),
+        let camera_bind_group =
+            CameraUniform::create_bind_group(&device, &camera_bind_group_layout, &camera_buffer);
+
+        let point_light_uniform = PointLightUniform::new(Point3::new(1.0, 0.0, 5.0), 1.0);
+        let point_light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Point Light Buffer"),
+            contents: bytemuck::cast_slice(&[point_light_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
+        let point_light_bind_group_layout = PointLightUniform::create_bind_group_layout(&device);
+        let point_light_bind_group = PointLightUniform::create_bind_group(
+            &device,
+            &point_light_bind_group_layout,
+            &point_light_buffer,
+        );
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout],
+                bind_group_layouts: &[&camera_bind_group_layout, &point_light_bind_group_layout],
                 push_constant_ranges: &[],
             });
 
@@ -192,7 +148,7 @@ impl Renderer {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: Some("vs_main"),
-                buffers: &[Vertex::desc()],
+                buffers: &[Vertex::desc(), RawInstance::desc()],
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
             },
             fragment: Some(wgpu::FragmentState {
@@ -229,14 +185,25 @@ impl Renderer {
 
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(VERTICES),
+            contents: bytemuck::cast_slice(&mesh.verticies),
             usage: wgpu::BufferUsages::VERTEX,
         });
 
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(INDICES),
+            contents: bytemuck::cast_slice(&mesh.indices),
             usage: wgpu::BufferUsages::INDEX,
+        });
+
+        let instances = [Instance {
+            model_mat: Matrix4::identity(),
+        }];
+        let raw_instances: Vec<RawInstance> =
+            instances.iter().map(|instance| instance.to_raw()).collect();
+        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Index Buffer"),
+            contents: bytemuck::cast_slice(&raw_instances),
+            usage: wgpu::BufferUsages::VERTEX,
         });
 
         Ok(Self {
@@ -253,6 +220,8 @@ impl Renderer {
             camera_uniform,
             camera_buffer,
             camera_bind_group,
+            point_light_bind_group,
+            instance_buffer,
             render_pipeline,
         })
     }
@@ -295,7 +264,9 @@ impl Renderer {
 
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.point_light_bind_group, &[]);
             render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
             render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
         }

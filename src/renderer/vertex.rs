@@ -5,6 +5,7 @@ use bytemuck::{Pod, Zeroable};
 pub struct Vertex {
     pub position: [f32; 3],
     pub color: [f32; 3],
+    pub normal: [f32; 3],
 }
 
 impl Vertex {
@@ -21,6 +22,11 @@ impl Vertex {
                 wgpu::VertexAttribute {
                     offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
                     shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x3,
+                },
+                wgpu::VertexAttribute {
+                    offset: std::mem::size_of::<[f32; 3]>() as wgpu::BufferAddress,
+                    shader_location: 2,
                     format: wgpu::VertexFormat::Float32x3,
                 },
             ],

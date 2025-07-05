@@ -1,13 +1,8 @@
 pub mod camera_uniform;
-use std::arch::aarch64::vsetq_lane_f64;
+pub mod light_uniform;
 
 use nalgebra::{Matrix4, Perspective3, Point3, Vector3};
-use winit::{
-    dpi::PhysicalPosition,
-    event::{ElementState, KeyEvent},
-    event_loop::ActiveEventLoop,
-    keyboard::KeyCode,
-};
+use winit::{event::ElementState, event_loop::ActiveEventLoop, keyboard::KeyCode};
 
 pub struct Camera {
     pub position: Point3<f32>,

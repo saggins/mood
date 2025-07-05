@@ -1,5 +1,6 @@
 mod application;
 mod camera;
+mod mesh;
 mod renderer;
 
 use application::AppState;
