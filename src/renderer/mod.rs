@@ -3,10 +3,7 @@ mod vertex;
 use nalgebra::{Point3, Vector3};
 use std::sync::Arc;
 use vertex::Vertex;
-use wgpu::util::{DeviceExt, RenderEncoder};
-use winit::event_loop;
-use winit::keyboard::KeyCode;
-use winit::{event::ElementState, event_loop::ActiveEventLoop};
+use wgpu::util::DeviceExt;
 
 use wgpu::{
     BindGroup, Buffer, Device, DeviceDescriptor, Queue, RenderPipeline, Surface,
@@ -14,8 +11,8 @@ use wgpu::{
 };
 use winit::window::Window;
 
+use crate::camera::Camera;
 use crate::camera::camera_uniform::CameraUniform;
-use crate::camera::{self, Camera};
 
 const VERTICES: &[Vertex] = &[
     // Front face
@@ -146,9 +143,9 @@ impl Renderer {
             is_d_pressed: false,
             yaw: 0.0,
             pitch: 0.0,
+            delta: None,
         };
 
-        // in new() after creating `camera`
         let mut camera_uniform = CameraUniform::new();
         camera_uniform.update_view_proj(&camera);
 
@@ -311,7 +308,7 @@ impl Renderer {
     }
 
     pub fn update(&mut self) {
-        self.camera.update_camera(0.2, 0.05);
+        self.camera.update_camera(0.1, 0.05, 0.005);
         self.camera_uniform.update_view_proj(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
@@ -329,14 +326,8 @@ impl Renderer {
         }
     }
 
-    pub fn handle_key(&mut self, key: KeyCode, state: ElementState, event_loop: &ActiveEventLoop) {
-        if key == KeyCode::Escape && state.is_pressed() {
-            event_loop.exit();
-            return;
-        }
-        if self.camera.handle_key_held(key, state) {
-            self.get_window().as_ref().request_redraw();
-        }
+    pub fn get_mut_camera(&mut self) -> &mut Camera {
+        &mut self.camera
     }
 
     pub fn get_surface(&self) -> &Surface {

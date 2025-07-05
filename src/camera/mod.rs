@@ -1,7 +1,11 @@
 pub mod camera_uniform;
+use std::arch::aarch64::vsetq_lane_f64;
+
 use nalgebra::{Matrix4, Perspective3, Point3, Vector3};
 use winit::{
+    dpi::PhysicalPosition,
     event::{ElementState, KeyEvent},
+    event_loop::ActiveEventLoop,
     keyboard::KeyCode,
 };
 
@@ -19,6 +23,7 @@ pub struct Camera {
     pub is_d_pressed: bool,
     pub yaw: f32,
     pub pitch: f32,
+    pub delta: Option<(f32, f32)>,
 }
 
 impl Camera {
@@ -29,8 +34,17 @@ impl Camera {
         proj * view
     }
 
-    pub fn handle_key_held(&mut self, key: KeyCode, state: ElementState) -> bool {
+    pub fn handle_key_held(
+        &mut self,
+        key: KeyCode,
+        state: ElementState,
+        event_loop: &ActiveEventLoop,
+    ) -> bool {
         match key {
+            KeyCode::Escape => {
+                event_loop.exit();
+                false
+            }
             KeyCode::KeyW => {
                 self.is_w_pressed = state.is_pressed();
                 true
@@ -51,21 +65,68 @@ impl Camera {
         }
     }
 
-    pub fn update_camera(&mut self, move_speed: f32, turn_speed: f32) {
-        let direction = Vector3::new(self.yaw.sin(), 0.0, self.yaw.cos()).normalize();
-        if self.is_w_pressed {
-            self.position += direction * move_speed;
-        }
-        if self.is_s_pressed {
-            self.position -= direction * move_speed;
-        }
-        if self.is_a_pressed {
-            self.yaw += turn_speed;
-        }
-        if self.is_d_pressed {
-            self.yaw -= turn_speed;
+    pub fn handle_mouse(&mut self, delta: (f64, f64)) {
+        let dx = delta.0 as f32;
+        let dy = delta.1 as f32;
+        self.delta = Some((dx, dy));
+    }
+
+    fn camera_shift(&mut self, delta: Vector3<f32>) {
+        self.position.x -= delta.x;
+        self.position.z -= delta.z;
+        self.target.x -= delta.x;
+        self.target.z -= delta.z;
+    }
+
+    pub fn update_camera(&mut self, move_speed: f32, turn_speed: f32, sensitivity: f32) {
+        if let Some(delta) = self.delta {
+            self.yaw -= delta.0 * sensitivity;
+            self.pitch -= delta.1 * sensitivity;
+            self.delta = None;
         }
 
-        self.target = self.position + direction;
+        let max_pitch = std::f32::consts::FRAC_PI_2 - 0.01;
+        self.pitch = self.pitch.clamp(-max_pitch, max_pitch);
+
+        let radius = (self.position - self.target).norm();
+        let yaw = self.yaw;
+        let pitch = self.pitch;
+
+        self.target.x = self.position.x + radius * pitch.cos() * yaw.sin();
+        self.target.y = self.position.y + radius * pitch.sin();
+        self.target.z = self.position.z + radius * pitch.cos() * yaw.cos();
+
+        let direction = Vector3::new(
+            self.yaw.cos() * self.pitch.cos(),
+            self.pitch.sin(),
+            self.yaw.sin() * self.pitch.cos(),
+        )
+        .normalize();
+        if self.is_w_pressed {
+            let mut delta: Vector3<f32> = (self.position - self.target).normalize();
+            delta -= delta.dot(&self.up) * self.up;
+            delta = delta.normalize() * move_speed;
+            self.camera_shift(delta);
+        }
+        if self.is_s_pressed {
+            let mut delta: Vector3<f32> = (self.position - self.target).normalize();
+            delta -= delta.dot(&self.up) * self.up;
+            delta = delta.normalize() * move_speed;
+            self.camera_shift(-delta);
+        }
+        if self.is_a_pressed {
+            let mut delta: Vector3<f32> =
+                (self.position - self.target).normalize().cross(&self.up) * move_speed;
+            delta -= delta.dot(&self.up) * self.up;
+            delta = delta.normalize() * move_speed;
+            self.camera_shift(-delta);
+        }
+        if self.is_d_pressed {
+            let mut delta: Vector3<f32> =
+                (self.position - self.target).normalize().cross(&self.up) * move_speed;
+            delta -= delta.dot(&self.up) * self.up;
+            delta = delta.normalize() * move_speed;
+            self.camera_shift(delta);
+        }
     }
 }

@@ -3,13 +3,12 @@ use std::sync::Arc;
 
 use winit::{
     application::ApplicationHandler,
-    event::{KeyEvent, WindowEvent},
+    event::{DeviceEvent, KeyEvent, WindowEvent},
     event_loop::ActiveEventLoop,
-    keyboard::{KeyCode, PhysicalKey},
+    keyboard::PhysicalKey,
     window::WindowAttributes,
 };
 
-use crate::camera::Camera;
 use crate::renderer::Renderer;
 
 #[derive(Default)]
@@ -70,8 +69,32 @@ impl ApplicationHandler for AppState {
                         ..
                     },
                 ..
-            } => renderer.handle_key(code, state, event_loop),
+            } => {
+                if renderer
+                    .get_mut_camera()
+                    .handle_key_held(code, state, event_loop)
+                {
+                    renderer.get_window().as_ref().request_redraw();
+                }
+            }
             _ => (),
+        }
+    }
+
+    fn device_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        device_id: winit::event::DeviceId,
+        event: DeviceEvent,
+    ) {
+        let Some(renderer) = &mut self.renderer else {
+            return;
+        };
+        match event {
+            DeviceEvent::MouseMotion { delta } => {
+                renderer.get_mut_camera().handle_mouse(delta);
+            }
+            _ => {}
         }
     }
 }
