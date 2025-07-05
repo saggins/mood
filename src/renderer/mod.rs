@@ -18,33 +18,50 @@ use crate::camera::camera_uniform::CameraUniform;
 use crate::camera::{self, Camera};
 
 const VERTICES: &[Vertex] = &[
+    // Front face
     Vertex {
-        position: [0.0, 0.5, 0.0],
+        position: [-0.5, -0.5, 0.5],
         color: [1.0, 0.0, 0.0],
-    },
+    }, // 0
     Vertex {
-        position: [-0.5, -0.5, 0.0],
+        position: [0.5, -0.5, 0.5],
         color: [0.0, 1.0, 0.0],
-    },
+    }, // 1
     Vertex {
-        position: [0.5, -0.5, 0.0],
+        position: [0.5, 0.5, 0.5],
         color: [0.0, 0.0, 1.0],
-    },
+    }, // 2
     Vertex {
-        position: [0.5, -0.5, 0.0],
-        color: [0.0, 0.0, 1.0],
-    },
+        position: [-0.5, 0.5, 0.5],
+        color: [1.0, 1.0, 0.0],
+    }, // 3
+    // Back face
     Vertex {
-        position: [0.1, -0.5, 0.0],
-        color: [0.0, 0.0, 1.0],
-    },
+        position: [-0.5, -0.5, -0.5],
+        color: [1.0, 0.0, 1.0],
+    }, // 4
     Vertex {
-        position: [0.5, -0.5, 0.0],
-        color: [0.0, 0.0, 1.0],
-    },
+        position: [0.5, -0.5, -0.5],
+        color: [0.0, 1.0, 1.0],
+    }, // 5
+    Vertex {
+        position: [0.5, 0.5, -0.5],
+        color: [1.0, 1.0, 1.0],
+    }, // 6
+    Vertex {
+        position: [-0.5, 0.5, -0.5],
+        color: [0.0, 0.0, 0.0],
+    }, // 7
 ];
-
-const INDICES: &[u16] = &[0, 1, 4, 1, 2, 4, 2, 3, 4];
+const INDICES: &[u16] = &[
+    // front
+    0, 1, 2, 2, 3, 0, // right
+    1, 5, 6, 6, 2, 1, // back
+    5, 4, 7, 7, 6, 5, // left
+    4, 0, 3, 3, 7, 4, // top
+    3, 2, 6, 6, 7, 3, // bottom
+    4, 5, 1, 1, 0, 4,
+];
 
 pub struct Renderer {
     window: Arc<Window>,
