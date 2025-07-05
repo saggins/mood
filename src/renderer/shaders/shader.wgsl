@@ -1,12 +1,15 @@
 
 struct CameraUniform {
-    view_proj: mat4x4<f32>
+    view_proj: mat4x4<f32>,
+    position: vec3<f32>,
+    _padding: f32
 }
 
 struct PointLightUniform {
     position: vec3<f32>,
     intensity: f32,
-    color: vec4<f32>
+    color: vec3<f32>,
+    _padding: f32
 }
 
 @group(0) @binding(0)
@@ -55,7 +58,7 @@ fn vs_main(
     
     var out: VertexOutput;
     out.color = model.color;
-    let world_position = model_mat * vec4<f32>(model.position, 1.0);
+    var world_position: vec4<f32> = model_mat * vec4<f32>(model.position, 1.0);
     out.clip_position = camera.view_proj * world_position;
     out.world_position = world_position.xyz;
     out.world_normal = normalize(normal_mat * model.normal);
@@ -65,15 +68,20 @@ fn vs_main(
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let light_dir = normalize(point_light.position - in.world_position);
-    let ambient = 0.05;
-    let diffuse = clamp(dot(in.world_normal, light_dir), 0.0, 1.0) * 1.5;
-    let specular = 0.0;
-    let color = in.color * (ambient + diffuse + specular);
-    return vec4<f32>(color, 1.0);
-}
-
-fn _reflected(incident: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
-    return incident - 2 * normal * dot(incident, normal);
+    let ambient = 0.03;
+    let diffuse =  max(dot(in.world_normal, light_dir), 0.0);
+    var specular = 0.0;
+    if (diffuse > 0.0) {
+        let view_dir = normalize(camera.position - in.world_position);
+        let half_dir = normalize(light_dir + view_dir);
+        let spec_angle = max(dot(in.world_normal, half_dir), 0.0);
+        specular = pow(spec_angle, 32.0);
+    }
+    let specular_color = point_light.color * specular;
+    let diffuse_color = point_light.color * diffuse * 0.1;
+    let ambient_color = point_light.color * ambient;
+    let color = in.color.xyz * (ambient_color + diffuse_color + specular_color);
+    return vec4<f32>(specular_color, 1.0);
 }
 
 fn inverse(m: mat3x3<f32>) -> mat3x3<f32> {

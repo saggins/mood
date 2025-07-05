@@ -1,4 +1,4 @@
-use nalgebra::Matrix4;
+use nalgebra::{Matrix4, Point3};
 use wgpu::{BindGroup, BindGroupLayout, Buffer, Device};
 
 use super::Camera;
@@ -7,12 +7,16 @@ use super::Camera;
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
 pub struct CameraUniform {
     view_proj: [[f32; 4]; 4],
+    position: [f32; 3],
+    _padding: f32,
 }
 
 impl CameraUniform {
-    pub fn new() -> Self {
+    pub fn new(cam_pos: Point3<f32>) -> Self {
         Self {
             view_proj: Matrix4::identity().into(),
+            position: cam_pos.into(),
+            _padding: 0.0,
         }
     }
 
@@ -20,11 +24,15 @@ impl CameraUniform {
         self.view_proj = camera.get_proj_view_mat().into();
     }
 
+    pub fn update_camera_pos(&mut self, camera: &Camera) {
+        self.position = camera.position.into();
+    }
+
     pub fn create_bind_group_layout(device: &Device) -> BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
+                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,

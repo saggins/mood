@@ -108,7 +108,7 @@ impl Renderer {
             delta: None,
         };
 
-        let mut camera_uniform = CameraUniform::new();
+        let mut camera_uniform = CameraUniform::new(camera.position);
         camera_uniform.update_view_proj(&camera);
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -122,7 +122,7 @@ impl Renderer {
         let camera_bind_group =
             CameraUniform::create_bind_group(&device, &camera_bind_group_layout, &camera_buffer);
 
-        let point_light_uniform = PointLightUniform::new(Point3::new(1.0, 0.0, 5.0), 1.0);
+        let point_light_uniform = PointLightUniform::new(Point3::new(0.0, 0.0, 2.0), 1.0);
         let point_light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Point Light Buffer"),
             contents: bytemuck::cast_slice(&[point_light_uniform]),
@@ -279,8 +279,9 @@ impl Renderer {
     }
 
     pub fn update(&mut self) {
-        self.camera.update_camera(0.1, 0.05, 0.005);
+        self.camera.update_camera(0.08, 0.05, 0.004);
         self.camera_uniform.update_view_proj(&self.camera);
+        self.camera_uniform.update_camera_pos(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
             0,

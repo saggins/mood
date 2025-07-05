@@ -6,7 +6,8 @@ use wgpu::{BindGroup, BindGroupLayout, Buffer, Device};
 pub struct PointLightUniform {
     pub position: [f32; 3],
     pub intensity: f32,
-    pub color: [f32; 4],
+    pub color: [f32; 3],
+    _padding: f32,
 }
 
 impl PointLightUniform {
@@ -14,7 +15,8 @@ impl PointLightUniform {
         Self {
             position: position.into(),
             intensity,
-            color: [1.0, 1.0, 1.0, 1.0],
+            color: [1.0, 1.0, 1.0],
+            _padding: 0.0,
         }
     }
 
