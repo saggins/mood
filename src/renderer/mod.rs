@@ -1,4 +1,4 @@
-mod model_instance;
+pub mod model_instance;
 
 use model_instance::{Instance, RawInstance};
 use nalgebra::{Matrix4, Point3, Vector3};
@@ -27,13 +27,11 @@ pub struct Renderer {
     config: SurfaceConfiguration,
     render_pipeline: RenderPipeline,
     models: Vec<Model>,
-    num_instances: u32,
     camera: Camera,
     camera_uniform: CameraUniform,
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
     point_light_bind_group: BindGroup,
-    instance_buffer: Buffer,
     depth_texture: DepthTexture,
     is_surface_configured: bool,
 }
@@ -134,7 +132,6 @@ impl Renderer {
         );
 
         let diffuse_texture_layout = Texture::create_bind_group_layout(&device);
-        let models = vec![Model::sample(&device, &queue, &diffuse_texture_layout)];
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -194,36 +191,12 @@ impl Renderer {
             cache: None,
         });
 
-        let instances = [
-            Instance {
-                model_mat: Matrix4::identity(),
-            },
-            Instance {
-                model_mat: Matrix4::new(
-                    1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-                ),
-            },
-            Instance {
-                model_mat: Matrix4::new(
-                    1.0, 0.0, 0.0, 2.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-                ),
-            },
-            Instance {
-                model_mat: Matrix4::new(
-                    1.0, 0.0, 0.0, 3.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-                ),
-            },
-        ];
-        let num_instances = instances.len() as u32;
-        let raw_instances: Vec<RawInstance> =
-            instances.iter().map(|instance| instance.to_raw()).collect();
-        let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&raw_instances),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
         let depth_texture = DepthTexture::create_depth_texture(&device, &config, "depth_texture");
+
+        let models = vec![
+            Model::walls(&device, &queue, &diffuse_texture_layout),
+            Model::floors(&device, &queue, &diffuse_texture_layout),
+        ];
 
         Ok(Self {
             window,
@@ -233,13 +206,11 @@ impl Renderer {
             config,
             is_surface_configured: true,
             models,
-            num_instances,
             camera,
             camera_uniform,
             camera_buffer,
             camera_bind_group,
             point_light_bind_group,
-            instance_buffer,
             depth_texture,
             render_pipeline,
         })
@@ -291,15 +262,8 @@ impl Renderer {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.point_light_bind_group, &[]);
-            render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
             for model in &self.models {
-                let mesh = &model.meshes[0];
-                let materials = &model.materials;
-                render_pass.set_bind_group(2, &materials[mesh.material as usize].bind_group, &[]);
-                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
-                render_pass
-                    .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-                render_pass.draw_indexed(0..mesh.num_elements, 0, 0..self.num_instances);
+                model.draw(&mut render_pass);
             }
         }
 
@@ -311,7 +275,7 @@ impl Renderer {
     }
 
     pub fn update(&mut self) {
-        self.camera.update_camera(0.08, 0.05, 0.004);
+        self.camera.update_camera(0.05, 0.05, 0.004);
         self.camera_uniform.update_view_proj(&self.camera);
         self.camera_uniform.update_camera_pos(&self.camera);
         self.queue.write_buffer(
