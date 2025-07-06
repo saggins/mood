@@ -1,11 +1,9 @@
 mod model_instance;
-pub mod vertex;
 
 use model_instance::{Instance, RawInstance};
-use nalgebra::{Matrix, Matrix4, Point3, Vector3};
+use nalgebra::{Matrix4, Point3, Vector3};
 use std::sync::Arc;
-use vertex::Vertex;
-use wgpu::util::{DeviceExt, RenderEncoder};
+use wgpu::util::DeviceExt;
 
 use wgpu::{
     BindGroup, Buffer, Device, DeviceDescriptor, Queue, RenderPipeline, Surface,
@@ -16,7 +14,10 @@ use winit::window::Window;
 use crate::camera::Camera;
 use crate::camera::camera_uniform::CameraUniform;
 use crate::camera::light_uniform::PointLightUniform;
-use crate::mesh::loader::MeshLoader;
+use crate::model::Model;
+use crate::model::depth_texture::DepthTexture;
+use crate::model::texture::Texture;
+use crate::model::vertex::Vertex;
 
 pub struct Renderer {
     window: Arc<Window>,
@@ -25,15 +26,15 @@ pub struct Renderer {
     queue: Queue,
     config: SurfaceConfiguration,
     render_pipeline: RenderPipeline,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    num_indices: u32,
+    models: Vec<Model>,
+    num_instances: u32,
     camera: Camera,
     camera_uniform: CameraUniform,
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
     point_light_bind_group: BindGroup,
     instance_buffer: Buffer,
+    depth_texture: DepthTexture,
     is_surface_configured: bool,
 }
 
@@ -43,10 +44,6 @@ impl Renderer {
             backends: wgpu::Backends::PRIMARY,
             ..Default::default()
         });
-
-        let mesh = MeshLoader::temp_load_mesh();
-
-        let num_indices = mesh.indices.len() as u32;
 
         let size = window.inner_size();
 
@@ -87,6 +84,7 @@ impl Renderer {
             view_formats: vec![],
             desired_maximum_frame_latency: 2,
         };
+
         surface.configure(&device, &config);
 
         let shader = device.create_shader_module(wgpu::include_wgsl!("shaders/shader.wgsl"));
@@ -135,10 +133,17 @@ impl Renderer {
             &point_light_buffer,
         );
 
+        let diffuse_texture_layout = Texture::create_bind_group_layout(&device);
+        let models = vec![Model::sample(&device, &queue, &diffuse_texture_layout)];
+
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[&camera_bind_group_layout, &point_light_bind_group_layout],
+                bind_group_layouts: &[
+                    &camera_bind_group_layout,
+                    &point_light_bind_group_layout,
+                    &diffuse_texture_layout,
+                ],
                 push_constant_ranges: &[],
             });
 
@@ -173,7 +178,13 @@ impl Renderer {
                 // Requires Features::CONSERVATIVE_RASTERIZATION
                 conservative: false,
             },
-            depth_stencil: None,
+            depth_stencil: Some(wgpu::DepthStencilState {
+                format: DepthTexture::DEPTH_FORMAT,
+                depth_write_enabled: true,
+                depth_compare: wgpu::CompareFunction::Less,
+                stencil: wgpu::StencilState::default(),
+                bias: wgpu::DepthBiasState::default(),
+            }),
             multisample: wgpu::MultisampleState {
                 count: 1,
                 mask: !0,
@@ -183,21 +194,27 @@ impl Renderer {
             cache: None,
         });
 
-        let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&mesh.verticies),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-
-        let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(&mesh.indices),
-            usage: wgpu::BufferUsages::INDEX,
-        });
-
-        let instances = [Instance {
-            model_mat: Matrix4::identity(),
-        }];
+        let instances = [
+            Instance {
+                model_mat: Matrix4::identity(),
+            },
+            Instance {
+                model_mat: Matrix4::new(
+                    1.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+                ),
+            },
+            Instance {
+                model_mat: Matrix4::new(
+                    1.0, 0.0, 0.0, 2.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+                ),
+            },
+            Instance {
+                model_mat: Matrix4::new(
+                    1.0, 0.0, 0.0, 3.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
+                ),
+            },
+        ];
+        let num_instances = instances.len() as u32;
         let raw_instances: Vec<RawInstance> =
             instances.iter().map(|instance| instance.to_raw()).collect();
         let instance_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -206,6 +223,8 @@ impl Renderer {
             usage: wgpu::BufferUsages::VERTEX,
         });
 
+        let depth_texture = DepthTexture::create_depth_texture(&device, &config, "depth_texture");
+
         Ok(Self {
             window,
             surface,
@@ -213,15 +232,15 @@ impl Renderer {
             queue,
             config,
             is_surface_configured: true,
-            vertex_buffer,
-            index_buffer,
-            num_indices,
+            models,
+            num_instances,
             camera,
             camera_uniform,
             camera_buffer,
             camera_bind_group,
             point_light_bind_group,
             instance_buffer,
+            depth_texture,
             render_pipeline,
         })
     }
@@ -257,7 +276,14 @@ impl Renderer {
                         store: wgpu::StoreOp::Store,
                     },
                 })],
-                depth_stencil_attachment: None,
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &self.depth_texture.view,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(1.0),
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
                 occlusion_query_set: None,
                 timestamp_writes: None,
             });
@@ -265,10 +291,16 @@ impl Renderer {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.point_light_bind_group, &[]);
-            render_pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
             render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
-            render_pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
-            render_pass.draw_indexed(0..self.num_indices, 0, 0..1);
+            for model in &self.models {
+                let mesh = &model.meshes[0];
+                let materials = &model.materials;
+                render_pass.set_bind_group(2, &materials[mesh.material as usize].bind_group, &[]);
+                render_pass.set_vertex_buffer(0, mesh.vertex_buffer.slice(..));
+                render_pass
+                    .set_index_buffer(mesh.index_buffer.slice(..), wgpu::IndexFormat::Uint16);
+                render_pass.draw_indexed(0..mesh.num_elements, 0, 0..self.num_instances);
+            }
         }
 
         // submit will accept anything that implements IntoIter
@@ -295,15 +327,13 @@ impl Renderer {
             self.config.height = height;
             self.surface.configure(&self.device, &self.config);
             self.is_surface_configured = true;
+            self.depth_texture =
+                DepthTexture::create_depth_texture(&self.device, &self.config, "depth_texture");
         }
     }
 
     pub fn get_mut_camera(&mut self) -> &mut Camera {
         &mut self.camera
-    }
-
-    pub fn get_surface(&self) -> &Surface {
-        &self.surface
     }
 
     pub fn get_window(&self) -> &Arc<Window> {
