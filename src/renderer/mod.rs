@@ -16,6 +16,7 @@ use crate::camera::camera_uniform::CameraUniform;
 use crate::camera::light_uniform::PointLightUniform;
 use crate::model::Model;
 use crate::model::depth_texture::DepthTexture;
+use crate::model::maps::map_1::Map1;
 use crate::model::texture::Texture;
 use crate::model::vertex::Vertex;
 
@@ -88,7 +89,7 @@ impl Renderer {
         let shader = device.create_shader_module(wgpu::include_wgsl!("shaders/shader.wgsl"));
 
         let camera = Camera {
-            position: Point3::new(0.0, 0.0, 1.0),
+            position: Point3::new(0.0, 0.5, 1.0),
             target: Point3::origin(),
             up: Vector3::new(0.0, 1.0, 0.0),
             aspect: size.width as f32 / size.height as f32,
@@ -118,7 +119,7 @@ impl Renderer {
         let camera_bind_group =
             CameraUniform::create_bind_group(&device, &camera_bind_group_layout, &camera_buffer);
 
-        let point_light_uniform = PointLightUniform::new(Point3::new(0.0, 0.0, 2.0), 1.0);
+        let point_light_uniform = PointLightUniform::new(Point3::new(4.0, 0.3, 0.5), 1.0);
         let point_light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Point Light Buffer"),
             contents: bytemuck::cast_slice(&[point_light_uniform]),
@@ -193,10 +194,7 @@ impl Renderer {
 
         let depth_texture = DepthTexture::create_depth_texture(&device, &config, "depth_texture");
 
-        let models = vec![
-            Model::walls(&device, &queue, &diffuse_texture_layout),
-            Model::floors(&device, &queue, &diffuse_texture_layout),
-        ];
+        let models = Map1::get_models(&device, &queue, &diffuse_texture_layout);
 
         Ok(Self {
             window,

@@ -12,10 +12,6 @@ pub struct RawInstance {
 }
 
 impl Instance {
-    pub fn new(model_mat: Matrix4<f32>) -> Self {
-        Self { model_mat }
-    }
-
     pub fn to_raw(&self) -> RawInstance {
         RawInstance {
             model_mat: self.model_mat.into(),

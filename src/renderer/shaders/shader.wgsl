@@ -75,7 +75,9 @@ var s_diffuse: sampler;
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let texture_color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
     let light_dir = normalize(point_light.position - in.world_position);
-    let ambient = 0.1;
+    let dist = distance(point_light.position, in.world_position);
+    let attenuation = 1 / (dist * dist);
+    let ambient = 0.08;
     let diffuse =  max(dot(in.world_normal, light_dir), 0.0);
     var specular = 0.0;
     if (diffuse > 0.0) {
@@ -84,10 +86,10 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let spec_angle = max(dot(in.world_normal, half_dir), 0.0);
         specular = pow(spec_angle, 32.0);
     }
-    let specular_color = point_light.color * specular;
-    let diffuse_color = point_light.color * diffuse * 0.1;
+    let specular_color = point_light.color * specular * 0.5;
+    let diffuse_color = point_light.color * diffuse;
     let ambient_color = point_light.color * ambient;
-    let color = texture_color.xyz * (ambient_color + diffuse_color + specular_color);
+    let color = texture_color.xyz * (ambient_color + diffuse_color + specular_color) * attenuation;
     return vec4<f32>(color, 1.0);
 }
 
