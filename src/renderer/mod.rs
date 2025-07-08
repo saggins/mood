@@ -10,7 +10,8 @@ use winit::window::Window;
 
 use crate::camera::Camera;
 use crate::camera::camera_uniform::CameraUniform;
-use crate::camera::light_uniform::PointLightUniform;
+use crate::camera::light::Light;
+use crate::camera::light_uniform::{LightUniform, LightUniformArray};
 use crate::model::Model;
 use crate::model::depth_texture::DepthTexture;
 use crate::model::maps::map_1::Map1;
@@ -117,14 +118,32 @@ impl Renderer {
         let camera_bind_group =
             CameraUniform::create_bind_group(&device, &camera_bind_group_layout, &camera_buffer);
 
-        let point_light_uniform = PointLightUniform::new(Point3::new(0.5, 0.5, 0.5), 1.0);
+        let lights = vec![
+            Light {
+                position: Point3::new(3.0, 0.5, 0.5),
+                intensity: 1.0,
+                color: [1.0, 1.0, 1.0],
+            },
+            Light {
+                position: Point3::new(3.0, 0.5, 3.0),
+                intensity: 1.0,
+                color: [1.0, 1.0, 1.0],
+            },
+            Light {
+                position: Point3::new(6.0, 0.5, 2.0),
+                intensity: 1.0,
+                color: [1.0, 1.0, 1.0],
+            },
+        ];
+
+        let point_light_uniform = LightUniformArray::new(&lights);
         let point_light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Point Light Buffer"),
             contents: bytemuck::cast_slice(&[point_light_uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
-        let point_light_bind_group_layout = PointLightUniform::create_bind_group_layout(&device);
-        let point_light_bind_group = PointLightUniform::create_bind_group(
+        let point_light_bind_group_layout = LightUniformArray::create_bind_group_layout(&device);
+        let point_light_bind_group = LightUniformArray::create_bind_group(
             &device,
             &point_light_bind_group_layout,
             &point_light_buffer,
@@ -271,7 +290,7 @@ impl Renderer {
     }
 
     pub fn update(&mut self) {
-        self.camera.update_camera(0.05, 0.05, 0.004);
+        self.camera.update_camera(0.02, 0.05, 0.004);
         self.camera_uniform.update_view_proj(&self.camera);
         self.camera_uniform.update_camera_pos(&self.camera);
         self.queue.write_buffer(

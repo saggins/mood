@@ -18,15 +18,15 @@ impl Map1 {
         bind_group_layout: &BindGroupLayout,
     ) -> Vec<Model> {
         let floor_material = Self::load_texture(
-            "textures/map1/paving_stones.png",
-            "textures/map1/paving_stones_normal.png",
+            "textures/map1/sand.png",
+            "textures/map1/sand_normal.png",
             device,
             queue,
             bind_group_layout,
         );
         let wall_material = Self::load_texture(
-            "textures/map1/rock.png",
-            "textures/map1/rock_normal.png",
+            "textures/map1/bricks.png",
+            "textures/map1/bricks_normal.png",
             device,
             queue,
             bind_group_layout,

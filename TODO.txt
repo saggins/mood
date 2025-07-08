@@ -1,5 +1,3 @@
- - Bump mapping
- - Multiple light sources
- 	 - shadows
+ - shadows
  - collision
  - map loading
