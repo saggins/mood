@@ -85,9 +85,7 @@ impl TextureBuilder {
 impl Texture {
     pub fn from_file(filename: &str, device: &Device, queue: &Queue, label: Option<&str>) -> Self {
         let file_bytes = fs::read(filename).expect("Failed to read image file");
-        let image = image::load_from_memory(&file_bytes)
-            .expect("Failed to load image")
-            .flipv();
+        let image = image::load_from_memory(&file_bytes).expect("Failed to load image");
         let rgba = image.to_rgba8();
         let dimensions = image.dimensions();
         let size = Extent3d {

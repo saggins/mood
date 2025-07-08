@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use wgpu::{Buffer, RenderPass};
 
 pub mod depth_texture;

@@ -11,12 +11,12 @@ use winit::window::Window;
 use crate::camera::Camera;
 use crate::camera::camera_uniform::CameraUniform;
 use crate::camera::light::Light;
-use crate::camera::light_uniform::{LightUniform, LightUniformArray};
+use crate::camera::light_uniform::LightUniformArray;
 use crate::model::Model;
 use crate::model::depth_texture::DepthTexture;
 use crate::model::maps::map_1::Map1;
 use crate::model::model_instance::RawInstance;
-use crate::model::texture::{Texture, TextureBuilder};
+use crate::model::texture::TextureBuilder;
 use crate::model::vertex::Vertex;
 
 pub struct Renderer {

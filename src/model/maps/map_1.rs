@@ -1,4 +1,4 @@
-use nalgebra::{Matrix3, Matrix4, MatrixSliceMut4x3, Rotation3, UnitVector1, Vector3};
+use nalgebra::{Matrix3, Rotation3, Vector3};
 use wgpu::util::DeviceExt;
 use wgpu::{BindGroupLayout, Buffer, Device, Queue};
 
@@ -31,9 +31,8 @@ impl Map1 {
             queue,
             bind_group_layout,
         );
-
         let ccw: [u16; 6] = [0, 2, 1, 0, 3, 2];
-        let cw: [u16; 6] = [0, 1, 2, 0, 2, 3];
+        let _cw: [u16; 6] = [0, 1, 2, 0, 2, 3];
 
         let mut floor = vec![
             Vertex {
@@ -180,7 +179,7 @@ impl Map1 {
             let (edge2, uv2) = v3 - v1;
             let r = 1.0 / (uv1.x * uv2.y - uv1.y * uv2.x);
             let tangent = (edge1 * uv2.y - edge2 * uv1.y) * r;
-            let bitangent = (edge2 * uv1.x - edge1 * uv2.x) * -r;
+            let bitangent = (edge2 * uv1.x - edge1 * uv2.x) * r;
             vertices[t1].tangent = (tangent + Vector3::from(vertices[t1].tangent)).into();
             vertices[t2].tangent = (tangent + Vector3::from(vertices[t2].tangent)).into();
             vertices[t3].tangent = (tangent + Vector3::from(vertices[t3].tangent)).into();
