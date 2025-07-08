@@ -24,15 +24,11 @@ impl PointLightUniform {
         self.position = new_position.into();
     }
 
-    pub fn update_intensity(&mut self, new_intensity: f32) {
-        self.intensity = new_intensity;
-    }
-
     pub fn create_bind_group_layout(device: &Device) -> BindGroupLayout {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
+                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,

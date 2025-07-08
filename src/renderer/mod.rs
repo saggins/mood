@@ -1,7 +1,4 @@
-pub mod model_instance;
-
-use model_instance::{Instance, RawInstance};
-use nalgebra::{Matrix4, Point3, Vector3};
+use nalgebra::{Point3, Vector3};
 use std::sync::Arc;
 use wgpu::util::DeviceExt;
 
@@ -17,7 +14,8 @@ use crate::camera::light_uniform::PointLightUniform;
 use crate::model::Model;
 use crate::model::depth_texture::DepthTexture;
 use crate::model::maps::map_1::Map1;
-use crate::model::texture::Texture;
+use crate::model::model_instance::RawInstance;
+use crate::model::texture::{Texture, TextureBuilder};
 use crate::model::vertex::Vertex;
 
 pub struct Renderer {
@@ -119,7 +117,7 @@ impl Renderer {
         let camera_bind_group =
             CameraUniform::create_bind_group(&device, &camera_bind_group_layout, &camera_buffer);
 
-        let point_light_uniform = PointLightUniform::new(Point3::new(4.0, 0.3, 0.5), 1.0);
+        let point_light_uniform = PointLightUniform::new(Point3::new(0.5, 0.5, 0.5), 1.0);
         let point_light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Point Light Buffer"),
             contents: bytemuck::cast_slice(&[point_light_uniform]),
@@ -132,7 +130,7 @@ impl Renderer {
             &point_light_buffer,
         );
 
-        let diffuse_texture_layout = Texture::create_bind_group_layout(&device);
+        let diffuse_texture_layout = TextureBuilder::create_bind_group_layout(&device);
 
         let render_pipeline_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

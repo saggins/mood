@@ -21,14 +21,17 @@ var<uniform> point_light: PointLightUniform;
 struct VertexInput {
     @location(0) position: vec3<f32>,
     @location(1) tex_coords: vec2<f32>,
-    @location(2) normal: vec3<f32>
+    @location(2) normal: vec3<f32>,
+    @location(3) tangent: vec3<f32>,
+    @location(4) bitangent: vec3<f32>
 };
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
     @location(0) tex_coords: vec2<f32>,
-    @location(1) world_normal: vec3<f32>,
-    @location(2) world_position: vec3<f32>,
+    @location(1) tangent_position: vec3<f32>,
+    @location(2) tangent_light_position: vec3<f32>,
+    @location(3) tangent_view_position: vec3<f32>,
 };
 
 struct InstanceInput {
@@ -36,6 +39,9 @@ struct InstanceInput {
     @location(6) model_matrix_1: vec4<f32>,
     @location(7) model_matrix_2: vec4<f32>,
     @location(8) model_matrix_3: vec4<f32>,
+    @location(9) normal_matrix_0: vec3<f32>,
+    @location(10) normal_matrix_1: vec3<f32>,
+    @location(11) normal_matrix_2: vec3<f32>,
     
 }
 
@@ -50,18 +56,28 @@ fn vs_main(
         instance.model_matrix_2,
         instance.model_matrix_3
     );
-    let normal_mat = transpose(inverse(mat3x3<f32> (
-        model_mat[0].xyz,
-        model_mat[1].xyz,
-        model_mat[2].xyz
-    )));
-    
+    let normal_mat = mat3x3<f32> (
+        instance.normal_matrix_0,
+        instance.normal_matrix_1,
+        instance.normal_matrix_2
+    );
+    let world_normal = normalize(normal_mat * model.normal);
+    let world_tangent = normalize(normal_mat * model.tangent);
+    let world_bitangent = normalize(normal_mat * model.bitangent);
+    let tangent_matrix = transpose(mat3x3<f32>(
+        world_tangent,
+        world_bitangent,
+        world_normal,
+    ));
+
+    let world_position = model_mat * vec4<f32>(model.position, 1.0);
+
     var out: VertexOutput;
-    out.tex_coords = model.tex_coords;
-    var world_position: vec4<f32> = model_mat * vec4<f32>(model.position, 1.0);
     out.clip_position = camera.view_proj * world_position;
-    out.world_position = world_position.xyz;
-    out.world_normal = normalize(normal_mat * model.normal);
+    out.tex_coords = model.tex_coords;
+    out.tangent_position = tangent_matrix * world_position.xyz;
+    out.tangent_view_position = tangent_matrix * camera.position.xyz;
+    out.tangent_light_position = tangent_matrix * point_light.position;
     return out;
 }
 
@@ -69,45 +85,32 @@ fn vs_main(
 var t_diffuse: texture_2d<f32>;
 @group(2) @binding(1)
 var s_diffuse: sampler;
+@group(2) @binding(2)
+var t_normal: texture_2d<f32>;
+@group(2) @binding(3)
+var s_normal: sampler;
 
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     let texture_color = textureSample(t_diffuse, s_diffuse, in.tex_coords);
-    let light_dir = normalize(point_light.position - in.world_position);
-    let dist = distance(point_light.position, in.world_position);
-    let attenuation = 1 / (dist * dist);
-    let ambient = 0.08;
-    let diffuse =  max(dot(in.world_normal, light_dir), 0.0);
+    let normal = textureSample(t_normal, s_normal, in.tex_coords);
+    let tangent_normal = normal.xyz * 2.0 - 1.0;
+    let light_dir = normalize(in.tangent_light_position - in.tangent_position);
+    let view_dir = normalize(in.tangent_view_position - in.tangent_position);
+    let dist = distance(in.tangent_light_position, in.tangent_position);
+    let attenuation = 1.0 / (dist * dist);
+    let ambient = 0.05;
+    let diffuse = max(dot(tangent_normal, light_dir), 0.0);
     var specular = 0.0;
     if (diffuse > 0.0) {
-        let view_dir = normalize(camera.position - in.world_position);
         let half_dir = normalize(light_dir + view_dir);
-        let spec_angle = max(dot(in.world_normal, half_dir), 0.0);
-        specular = pow(spec_angle, 32.0);
+        let spec_angle = max(dot(tangent_normal, half_dir), 0.0);
+        specular = pow(spec_angle, 16.0);
     }
-    let specular_color = point_light.color * specular * 0.5;
+    let specular_color = point_light.color * specular;
     let diffuse_color = point_light.color * diffuse;
     let ambient_color = point_light.color * ambient;
     let color = texture_color.xyz * (ambient_color + diffuse_color + specular_color) * attenuation;
     return vec4<f32>(color, 1.0);
 }
-
-fn inverse(m: mat3x3<f32>) -> mat3x3<f32> {
-    let a00 = m[0][0]; let a01 = m[0][1]; let a02 = m[0][2];
-    let a10 = m[1][0]; let a11 = m[1][1]; let a12 = m[1][2];
-    let a20 = m[2][0]; let a21 = m[2][1]; let a22 = m[2][2];
-
-    let b01 = a22 * a11 - a12 * a21;
-    let b11 = -a22 * a10 + a12 * a20;
-    let b21 = a21 * a10 - a11 * a20;
-
-    let det = a00 * b01 + a01 * b11 + a02 * b21;
-
-    return mat3x3<f32>(
-        vec3<f32>(b01, -a22 * a01 + a02 * a21, a12 * a01 - a02 * a11),
-        vec3<f32>(b11, a22 * a00 - a02 * a20, -a12 * a00 + a02 * a10),
-        vec3<f32>(b21, -a21 * a00 + a01 * a20, a11 * a00 - a01 * a10)
-    ) * (1.0 / det);
-}
-

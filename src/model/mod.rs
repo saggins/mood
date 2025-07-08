@@ -1,9 +1,8 @@
-use crate::renderer::model_instance::{Instance, RawInstance};
 use wgpu::{Buffer, RenderPass};
 
 pub mod depth_texture;
 pub mod maps;
-pub mod model_loader;
+pub mod model_instance;
 pub mod texture;
 pub mod vertex;
 
@@ -18,6 +17,7 @@ pub struct Mesh {
 pub struct Material {
     pub name: String,
     pub diffuse_texture: texture::Texture,
+    pub normal_texture: texture::Texture,
     pub bind_group: wgpu::BindGroup,
 }
 
