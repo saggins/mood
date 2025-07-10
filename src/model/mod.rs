@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use wgpu::{Buffer, RenderPass};
 
+pub mod cube_texture;
 pub mod depth_texture;
 pub mod maps;
 pub mod model_instance;

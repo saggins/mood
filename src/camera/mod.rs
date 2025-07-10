@@ -23,11 +23,12 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn get_proj_view_mat(&self) -> Matrix4<f32> {
-        let view = Matrix4::look_at_rh(&self.position, &self.target, &self.up);
-        let proj = Perspective3::new(self.aspect, self.fovy, self.near, self.far).to_homogeneous();
+    pub fn get_proj_mat(&self) -> Matrix4<f32> {
+        Perspective3::new(self.aspect, self.fovy, self.near, self.far).to_homogeneous()
+    }
 
-        proj * view
+    pub fn get_view_mat(&self) -> Matrix4<f32> {
+        Matrix4::look_at_rh(&self.position, &self.target, &self.up)
     }
 
     pub fn handle_key_held(

@@ -1,8 +1,9 @@
-
 struct CameraUniform {
+    view_pos: vec4<f32>,
+    view: mat4x4<f32>,
     view_proj: mat4x4<f32>,
-    position: vec3<f32>,
-    _padding: f32
+    inv_proj: mat4x4<f32>,
+    inv_view: mat4x4<f32>,
 }
 
 struct LightUniform {
@@ -86,7 +87,7 @@ fn vs_main(
     out.clip_position = camera.view_proj * world_position;
     out.tex_coords = model.tex_coords;
     out.tangent_position = tangent_matrix * world_position.xyz;
-    out.tangent_view_position = tangent_matrix * camera.position.xyz;
+    out.tangent_view_position = tangent_matrix * camera.view_pos.xyz;
     return out;
 }
 
@@ -115,6 +116,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
     for (var i = 0u; i < point_lights.count; i++) {
         let light_pos = tangent_matrix * point_lights.lights[i].position;
         let light_color = point_lights.lights[i].color;
+        let light_intensity = point_lights.lights[i].intensity;
         let light_dir = normalize(light_pos - in.tangent_position);
         let dist = distance(light_pos, in.tangent_position);
         let attenuation = 1.0 / (dist * dist);
@@ -127,7 +129,7 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             specular = pow(spec_angle, 16.0);
         }
         
-        color += light_color * (specular + diffuse) * attenuation;
+        color += light_color * (specular + diffuse) * attenuation * light_intensity;
     }
     
     let texture_color = textureSample(t_diffuse, s_diffuse, in.tex_coords);

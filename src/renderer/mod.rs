@@ -1,10 +1,11 @@
 use nalgebra::{Point3, Vector3};
+use pipeline_factory::PipelineFactory;
 use std::sync::Arc;
-use wgpu::util::DeviceExt;
+use wgpu::util::{DeviceExt, RenderEncoder};
 
 use wgpu::{
     BindGroup, Buffer, Device, DeviceDescriptor, Queue, RenderPipeline, Surface,
-    SurfaceConfiguration,
+    SurfaceConfiguration, VertexBufferLayout,
 };
 use winit::window::Window;
 
@@ -13,11 +14,14 @@ use crate::camera::camera_uniform::CameraUniform;
 use crate::camera::light::Light;
 use crate::camera::light_uniform::LightUniformArray;
 use crate::model::Model;
+use crate::model::cube_texture::{CubeTexture, CubeTextureBuilder};
 use crate::model::depth_texture::DepthTexture;
 use crate::model::maps::map_1::Map1;
 use crate::model::model_instance::RawInstance;
 use crate::model::texture::TextureBuilder;
 use crate::model::vertex::Vertex;
+
+mod pipeline_factory;
 
 pub struct Renderer {
     window: Arc<Window>,
@@ -34,6 +38,8 @@ pub struct Renderer {
     point_light_bind_group: BindGroup,
     depth_texture: DepthTexture,
     is_surface_configured: bool,
+    skybox_bind_group: BindGroup,
+    skybox_render_pipeline: RenderPipeline,
 }
 
 impl Renderer {
@@ -85,8 +91,6 @@ impl Renderer {
 
         surface.configure(&device, &config);
 
-        let shader = device.create_shader_module(wgpu::include_wgsl!("shaders/shader.wgsl"));
-
         let camera = Camera {
             position: Point3::new(0.0, 0.5, 1.0),
             target: Point3::origin(),
@@ -105,7 +109,7 @@ impl Renderer {
         };
 
         let mut camera_uniform = CameraUniform::new(camera.position);
-        camera_uniform.update_view_proj(&camera);
+        camera_uniform.update_cam(&camera);
 
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Camera Buffer"),
@@ -118,6 +122,7 @@ impl Renderer {
         let camera_bind_group =
             CameraUniform::create_bind_group(&device, &camera_bind_group_layout, &camera_buffer);
 
+        // MAX 32 lights for now.
         let lights = vec![
             Light {
                 position: Point3::new(3.0, 0.5, 0.5),
@@ -150,64 +155,61 @@ impl Renderer {
         );
 
         let diffuse_texture_layout = TextureBuilder::create_bind_group_layout(&device);
+        let render_pipeline_layout = PipelineFactory::create_render_pipeline_layout(
+            &device,
+            &[
+                &camera_bind_group_layout,
+                &point_light_bind_group_layout,
+                &diffuse_texture_layout,
+            ],
+        );
 
-        let render_pipeline_layout =
-            device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("Render Pipeline Layout"),
-                bind_group_layouts: &[
-                    &camera_bind_group_layout,
-                    &point_light_bind_group_layout,
-                    &diffuse_texture_layout,
-                ],
-                push_constant_ranges: &[],
-            });
+        let render_pipeline = PipelineFactory::create_render_pipeline(
+            &device,
+            &render_pipeline_layout,
+            config.format,
+            Some(DepthTexture::DEPTH_FORMAT),
+            &[Vertex::desc(), RawInstance::desc()],
+            wgpu::PrimitiveTopology::TriangleList,
+            wgpu::ShaderModuleDescriptor {
+                label: Some("Normal Shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shader.wgsl").into()),
+            },
+        );
 
-        let render_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Render Pipeline"),
-            layout: Some(&render_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                buffers: &[Vertex::desc(), RawInstance::desc()],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
+        let skybox_files = vec![
+            String::from("textures/map1/skybox/right.jpg"),
+            String::from("textures/map1/skybox/left.jpg"),
+            String::from("textures/map1/skybox/top.jpg"),
+            String::from("textures/map1/skybox/bottom.jpg"),
+            String::from("textures/map1/skybox/front.jpg"),
+            String::from("textures/map1/skybox/back.jpg"),
+        ];
+        let skybox_bind_group_layout = CubeTextureBuilder::create_bind_group_layout(&device);
+        let skybox_texture =
+            CubeTexture::from_files(&skybox_files, &device, &queue, Some("Galaxy Texture"));
+        let skybox_bind_group = CubeTextureBuilder::create_bind_group(
+            &device,
+            &skybox_texture,
+            &skybox_bind_group_layout,
+        );
+
+        let skybox_pipeline_layout = PipelineFactory::create_render_pipeline_layout(
+            &device,
+            &[&skybox_bind_group_layout, &camera_bind_group_layout],
+        );
+        let skybox_render_pipeline = PipelineFactory::create_render_pipeline(
+            &device,
+            &skybox_pipeline_layout,
+            config.format,
+            Some(DepthTexture::DEPTH_FORMAT),
+            &[],
+            wgpu::PrimitiveTopology::TriangleList,
+            wgpu::ShaderModuleDescriptor {
+                label: Some("Skybox Shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/skybox.wgsl").into()),
             },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: config.format,
-                    blend: Some(wgpu::BlendState::REPLACE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-            }),
-            primitive: wgpu::PrimitiveState {
-                topology: wgpu::PrimitiveTopology::TriangleList,
-                strip_index_format: None,
-                front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
-                // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
-                polygon_mode: wgpu::PolygonMode::Fill,
-                // Requires Features::DEPTH_CLIP_CONTROL
-                unclipped_depth: false,
-                // Requires Features::CONSERVATIVE_RASTERIZATION
-                conservative: false,
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DepthTexture::DEPTH_FORMAT,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::Less,
-                stencil: wgpu::StencilState::default(),
-                bias: wgpu::DepthBiasState::default(),
-            }),
-            multisample: wgpu::MultisampleState {
-                count: 1,
-                mask: !0,
-                alpha_to_coverage_enabled: false,
-            },
-            multiview: None,
-            cache: None,
-        });
+        );
 
         let depth_texture = DepthTexture::create_depth_texture(&device, &config, "depth_texture");
 
@@ -228,6 +230,8 @@ impl Renderer {
             point_light_bind_group,
             depth_texture,
             render_pipeline,
+            skybox_bind_group,
+            skybox_render_pipeline,
         })
     }
 
@@ -280,6 +284,11 @@ impl Renderer {
             for model in &self.models {
                 model.draw(&mut render_pass);
             }
+
+            render_pass.set_pipeline(&self.skybox_render_pipeline);
+            render_pass.set_bind_group(0, &self.skybox_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
+            render_pass.draw(0..3, 0..1);
         }
 
         // submit will accept anything that implements IntoIter
@@ -291,8 +300,7 @@ impl Renderer {
 
     pub fn update(&mut self) {
         self.camera.update_camera(0.02, 0.05, 0.004);
-        self.camera_uniform.update_view_proj(&self.camera);
-        self.camera_uniform.update_camera_pos(&self.camera);
+        self.camera_uniform.update_cam(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
