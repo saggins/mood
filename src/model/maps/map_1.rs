@@ -1,7 +1,8 @@
-use nalgebra::{Matrix3, Rotation3, Vector3};
+use nalgebra::{Matrix3, Point3, Rotation3, Vector3};
 use wgpu::util::DeviceExt;
 use wgpu::{BindGroupLayout, Buffer, Device, Queue};
 
+use crate::camera::light::Light;
 use crate::model::model_instance::{Instance, RawInstance};
 use crate::model::texture::{Texture, TextureBuilder};
 use crate::model::{Material, Mesh};
@@ -16,7 +17,7 @@ impl Map1 {
         device: &Device,
         queue: &Queue,
         bind_group_layout: &BindGroupLayout,
-    ) -> Vec<Model> {
+    ) -> (Vec<Model>, Vec<String>, Vec<Light>) {
         let floor_material = Self::load_texture(
             "textures/map1/sand.png",
             "textures/map1/sand_normal.png",
@@ -99,20 +100,47 @@ impl Map1 {
         let (floor_instance_buffer, floor_num_instances) = Self::floor_instance(device);
         let (outer_wall_instance_buffer, outer_wall_num_instances) =
             Self::outer_wall_instance(device);
-        vec![
-            Model {
-                meshes: vec![Self::gen_mesh(&mut floor, &ccw, 0, device)],
-                materials: vec![floor_material],
-                instance_buffer: floor_instance_buffer,
-                num_instances: floor_num_instances,
-            },
-            Model {
-                meshes: vec![Self::gen_mesh(&mut wall, &ccw, 0, device)],
-                materials: vec![wall_material],
-                instance_buffer: outer_wall_instance_buffer,
-                num_instances: outer_wall_num_instances,
-            },
-        ]
+        (
+            vec![
+                Model {
+                    meshes: vec![Self::gen_mesh(&mut floor, &ccw, 0, device)],
+                    materials: vec![floor_material],
+                    instance_buffer: floor_instance_buffer,
+                    num_instances: floor_num_instances,
+                },
+                Model {
+                    meshes: vec![Self::gen_mesh(&mut wall, &ccw, 0, device)],
+                    materials: vec![wall_material],
+                    instance_buffer: outer_wall_instance_buffer,
+                    num_instances: outer_wall_num_instances,
+                },
+            ],
+            vec![
+                String::from("textures/map1/skybox/right.jpg"),
+                String::from("textures/map1/skybox/left.jpg"),
+                String::from("textures/map1/skybox/top.jpg"),
+                String::from("textures/map1/skybox/bottom.jpg"),
+                String::from("textures/map1/skybox/front.jpg"),
+                String::from("textures/map1/skybox/back.jpg"),
+            ],
+            vec![
+                Light {
+                    position: Point3::new(3.0, 0.5, 0.5),
+                    intensity: 1.0,
+                    color: [1.0, 1.0, 1.0],
+                },
+                Light {
+                    position: Point3::new(3.0, 0.5, 3.0),
+                    intensity: 1.0,
+                    color: [1.0, 1.0, 1.0],
+                },
+                Light {
+                    position: Point3::new(6.0, 0.5, 2.0),
+                    intensity: 1.0,
+                    color: [1.0, 1.0, 1.0],
+                },
+            ],
+        )
     }
 
     fn floor_instance(device: &Device) -> (Buffer, u32) {

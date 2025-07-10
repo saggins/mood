@@ -108,53 +108,11 @@ impl Renderer {
             delta: None,
         };
 
-        let mut camera_uniform = CameraUniform::new(camera.position);
-        camera_uniform.update_cam(&camera);
-
-        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Camera Buffer"),
-            contents: bytemuck::cast_slice(&[camera_uniform]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-
+        // layouts
         let camera_bind_group_layout = CameraUniform::create_bind_group_layout(&device);
-
-        let camera_bind_group =
-            CameraUniform::create_bind_group(&device, &camera_bind_group_layout, &camera_buffer);
-
-        // MAX 32 lights for now.
-        let lights = vec![
-            Light {
-                position: Point3::new(3.0, 0.5, 0.5),
-                intensity: 1.0,
-                color: [1.0, 1.0, 1.0],
-            },
-            Light {
-                position: Point3::new(3.0, 0.5, 3.0),
-                intensity: 1.0,
-                color: [1.0, 1.0, 1.0],
-            },
-            Light {
-                position: Point3::new(6.0, 0.5, 2.0),
-                intensity: 1.0,
-                color: [1.0, 1.0, 1.0],
-            },
-        ];
-
-        let point_light_uniform = LightUniformArray::new(&lights);
-        let point_light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Point Light Buffer"),
-            contents: bytemuck::cast_slice(&[point_light_uniform]),
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
-        });
-        let point_light_bind_group_layout = LightUniformArray::create_bind_group_layout(&device);
-        let point_light_bind_group = LightUniformArray::create_bind_group(
-            &device,
-            &point_light_bind_group_layout,
-            &point_light_buffer,
-        );
-
         let diffuse_texture_layout = TextureBuilder::create_bind_group_layout(&device);
+        let point_light_bind_group_layout = LightUniformArray::create_bind_group_layout(&device);
+        let skybox_bind_group_layout = CubeTextureBuilder::create_bind_group_layout(&device);
         let render_pipeline_layout = PipelineFactory::create_render_pipeline_layout(
             &device,
             &[
@@ -163,7 +121,51 @@ impl Renderer {
                 &diffuse_texture_layout,
             ],
         );
+        let skybox_pipeline_layout = PipelineFactory::create_render_pipeline_layout(
+            &device,
+            &[&skybox_bind_group_layout, &camera_bind_group_layout],
+        );
 
+        let (models, skybox_files, lights) =
+            Map1::get_models(&device, &queue, &diffuse_texture_layout);
+
+        // uniforms
+        let mut camera_uniform = CameraUniform::new(camera.position);
+        let point_light_uniform = LightUniformArray::new(&lights);
+        camera_uniform.update_cam(&camera);
+
+        // buffers
+        let point_light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Point Light Buffer"),
+            contents: bytemuck::cast_slice(&[point_light_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+        let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Camera Buffer"),
+            contents: bytemuck::cast_slice(&[camera_uniform]),
+            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+        });
+
+        // textures
+        let skybox_texture =
+            CubeTexture::from_files(&skybox_files, &device, &queue, Some("Galaxy Texture"));
+        let depth_texture = DepthTexture::create_depth_texture(&device, &config, "depth_texture");
+
+        //bind groups
+        let camera_bind_group =
+            CameraUniform::create_bind_group(&device, &camera_bind_group_layout, &camera_buffer);
+        let point_light_bind_group = LightUniformArray::create_bind_group(
+            &device,
+            &point_light_bind_group_layout,
+            &point_light_buffer,
+        );
+        let skybox_bind_group = CubeTextureBuilder::create_bind_group(
+            &device,
+            &skybox_texture,
+            &skybox_bind_group_layout,
+        );
+
+        // pipelines
         let render_pipeline = PipelineFactory::create_render_pipeline(
             &device,
             &render_pipeline_layout,
@@ -177,27 +179,6 @@ impl Renderer {
             },
         );
 
-        let skybox_files = vec![
-            String::from("textures/map1/skybox/right.jpg"),
-            String::from("textures/map1/skybox/left.jpg"),
-            String::from("textures/map1/skybox/top.jpg"),
-            String::from("textures/map1/skybox/bottom.jpg"),
-            String::from("textures/map1/skybox/front.jpg"),
-            String::from("textures/map1/skybox/back.jpg"),
-        ];
-        let skybox_bind_group_layout = CubeTextureBuilder::create_bind_group_layout(&device);
-        let skybox_texture =
-            CubeTexture::from_files(&skybox_files, &device, &queue, Some("Galaxy Texture"));
-        let skybox_bind_group = CubeTextureBuilder::create_bind_group(
-            &device,
-            &skybox_texture,
-            &skybox_bind_group_layout,
-        );
-
-        let skybox_pipeline_layout = PipelineFactory::create_render_pipeline_layout(
-            &device,
-            &[&skybox_bind_group_layout, &camera_bind_group_layout],
-        );
         let skybox_render_pipeline = PipelineFactory::create_render_pipeline(
             &device,
             &skybox_pipeline_layout,
@@ -210,10 +191,6 @@ impl Renderer {
                 source: wgpu::ShaderSource::Wgsl(include_str!("shaders/skybox.wgsl").into()),
             },
         );
-
-        let depth_texture = DepthTexture::create_depth_texture(&device, &config, "depth_texture");
-
-        let models = Map1::get_models(&device, &queue, &diffuse_texture_layout);
 
         Ok(Self {
             window,
