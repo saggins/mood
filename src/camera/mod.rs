@@ -5,6 +5,8 @@ pub mod light_uniform;
 use nalgebra::{Matrix4, Perspective3, Point3, Vector3};
 use winit::{event::ElementState, event_loop::ActiveEventLoop, keyboard::KeyCode};
 
+use crate::collision::collision_manager::CollisionManager;
+
 pub struct Camera {
     pub position: Point3<f32>,
     pub target: Point3<f32>,
@@ -69,13 +71,14 @@ impl Camera {
     }
 
     fn camera_shift(&mut self, delta: Vector3<f32>) {
-        self.position.x -= delta.x;
-        self.position.z -= delta.z;
-        self.target.x -= delta.x;
-        self.target.z -= delta.z;
+        let valid_delta = delta;
+        self.position.x -= valid_delta.x;
+        self.position.z -= valid_delta.z;
+        self.target.x -= valid_delta.x;
+        self.target.z -= valid_delta.z;
     }
 
-    pub fn update_camera(&mut self, move_speed: f32, turn_speed: f32, sensitivity: f32) {
+    pub fn update_camera(&mut self, move_speed: f32, sensitivity: f32) {
         if let Some(delta) = self.delta {
             self.yaw -= delta.0 * sensitivity;
             self.pitch -= delta.1 * sensitivity;
@@ -93,12 +96,6 @@ impl Camera {
         self.target.y = self.position.y + radius * pitch.sin();
         self.target.z = self.position.z + radius * pitch.cos() * yaw.cos();
 
-        let direction = Vector3::new(
-            self.yaw.cos() * self.pitch.cos(),
-            self.pitch.sin(),
-            self.yaw.sin() * self.pitch.cos(),
-        )
-        .normalize();
         if self.is_w_pressed {
             let mut delta: Vector3<f32> = (self.position - self.target).normalize();
             delta -= delta.dot(&self.up) * self.up;

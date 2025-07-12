@@ -127,17 +127,17 @@ impl Map1 {
                 Light {
                     position: Point3::new(3.0, 0.5, 0.5),
                     intensity: 1.0,
-                    color: [1.0, 1.0, 1.0],
+                    color: [1.0, 0.0, 0.0],
                 },
                 Light {
                     position: Point3::new(3.0, 0.5, 3.0),
                     intensity: 1.0,
-                    color: [1.0, 1.0, 1.0],
+                    color: [0.0, 1.0, 0.0],
                 },
                 Light {
                     position: Point3::new(6.0, 0.5, 2.0),
                     intensity: 1.0,
-                    color: [1.0, 1.0, 1.0],
+                    color: [0.0, 0.0, 1.0],
                 },
             ],
         )

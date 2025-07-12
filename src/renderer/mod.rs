@@ -276,7 +276,7 @@ impl Renderer {
     }
 
     pub fn update(&mut self) {
-        self.camera.update_camera(0.02, 0.05, 0.004);
+        self.camera.update_camera(0.02, 0.004);
         self.camera_uniform.update_cam(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
