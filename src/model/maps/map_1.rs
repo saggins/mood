@@ -100,7 +100,7 @@ impl Map1 {
         ];
 
         let collsion_manager = CollisionManager {
-            map_boxes: vec![Self::floor_box(), Self::wall_box()],
+            map_boxes: vec![Self::floor_box(), Self::wall_box(), Self::wall_box_2()],
             player_box: BoundingBox {
                 top_left: Point3::new(0.9, 0.5, 0.9),
                 bottom_right: Point3::new(1.1, 0.0, 1.1),
@@ -159,7 +159,7 @@ impl Map1 {
         BoundingBox {
             top_left: Point3::new(0.0, 0.0, 0.0),
             bottom_right: Point3::new(Self::WIDTH as f32, -1.0, Self::HEIGHT as f32),
-            collide_on_top: true,
+            collide_on_top: false,
         }
     }
 
@@ -167,7 +167,14 @@ impl Map1 {
         BoundingBox {
             top_left: Point3::new(0.0, 1.0, -1.5),
             bottom_right: Point3::new(Self::WIDTH as f32, 0.0, -0.5),
-            collide_on_top: false,
+            collide_on_top: true,
+        }
+    }
+    fn wall_box_2() -> BoundingBox {
+        BoundingBox {
+            top_left: Point3::new(Self::WIDTH as f32 - 0.5, 1.0, -0.5),
+            bottom_right: Point3::new(Self::WIDTH as f32, 0.0, Self::HEIGHT as f32),
+            collide_on_top: true,
         }
     }
     fn floor_instance(device: &Device) -> (Buffer, u32) {

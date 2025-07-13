@@ -1,4 +1,4 @@
-use nalgebra::{Point3, Vector3};
+use nalgebra::Vector3;
 
 use super::bounding_box::BoundingBox;
 
@@ -12,7 +12,8 @@ impl CollisionManager {
     /// returns the movement vector after collision calcuations.
     /// Also shifts the player's bounding box to that location.
     pub fn move_player(&mut self, delta: Vector3<f32>) -> Vector3<f32> {
-        let test_box = self.player_box.clone();
+        let mut test_box = self.player_box.clone();
+        test_box.move_by(delta);
         let colliding_boxes: Vec<&BoundingBox> = self
             .map_boxes
             .iter()
@@ -26,7 +27,7 @@ impl CollisionManager {
             for colliding_box in &colliding_boxes {
                 new_delta = self
                     .player_box
-                    .nearest_non_colliding_delta(colliding_box, delta);
+                    .nearest_non_colliding_delta(colliding_box, new_delta);
             }
             self.player_box.move_by(new_delta);
             new_delta

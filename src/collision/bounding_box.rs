@@ -1,4 +1,3 @@
-use image::buffer::EnumerateRows;
 use nalgebra::{Point3, Vector3};
 
 #[derive(Debug, Clone)]
@@ -8,10 +7,16 @@ pub struct BoundingBox {
     pub collide_on_top: bool,
 }
 
+enum AxisType {
+    X,
+    Y,
+    Z,
+}
+
 impl BoundingBox {
-    /// threshold for collision management
-    const EPSILON: f32 = 0.001;
-    const MAX_ITER: u8 = 100;
+    const EPSILON: f32 = 0.0001; // How close you can get before colliding
+    const MAX_ITER: u8 = 8; // How many binary search iterations we will do max
+
     pub fn is_colliding_with(&self, other: &Self) -> bool {
         self.top_left.x < other.bottom_right.x
             && self.bottom_right.x > other.top_left.x
@@ -26,39 +31,67 @@ impl BoundingBox {
         self.bottom_right -= delta;
     }
 
-    pub fn nearest_non_colliding_delta(&self, other: &Self, delta: Vector3<f32>) -> Vector3<f32> {
-        if !self.is_colliding_with(other) {
-            return delta;
+    fn largest_movement_possible_single_axis(
+        &self,
+        other: &Self,
+        delta: f32,
+        axis_type: AxisType,
+    ) -> f32 {
+        if delta.abs() < Self::EPSILON {
+            return 0.0;
         }
-        let mut test_box = self.clone();
-        test_box.top_left = self.top_left - delta;
-        test_box.bottom_right = self.bottom_right - delta;
-        if !test_box.is_colliding_with(other) {
-            return delta;
-        }
-        let mut new_delta = delta;
-        let mut min = 0.0;
-        let mut max = 1.0;
-        for _ in 0..Self::MAX_ITER {
-            let t = (max + min) / 2.0;
-            new_delta = delta * t;
-            test_box.top_left = self.top_left - new_delta;
-            test_box.bottom_right = self.bottom_right - new_delta;
 
-            if test_box.is_colliding_with(other) {
-                max = t;
-            } else {
-                min = t;
+        let mut t_min = 0.0;
+        let mut low = 0.0;
+        let mut high = 1.0;
+
+        for _ in 0..Self::MAX_ITER {
+            let t = (low + high) / 2.0;
+            let move_amount = delta * t;
+
+            let mut test_box = self.clone();
+            match axis_type {
+                AxisType::X => {
+                    test_box.top_left.x -= move_amount;
+                    test_box.bottom_right.x -= move_amount;
+                }
+                AxisType::Y => {
+                    test_box.top_left.y -= move_amount;
+                    test_box.bottom_right.y -= move_amount;
+                }
+                AxisType::Z => {
+                    test_box.top_left.z -= move_amount;
+                    test_box.bottom_right.z -= move_amount;
+                }
             }
 
-            if max - min < Self::EPSILON {
+            if test_box.is_colliding_with(other) {
+                high = t;
+            } else {
+                t_min = t;
+                low = t;
+            }
+
+            if (high - low).abs() < Self::EPSILON {
                 break;
             }
         }
-        if test_box.is_colliding_with(other) {
-            Vector3::zeros()
-        } else {
-            new_delta
-        }
+
+        delta * t_min
+    }
+
+    pub fn nearest_non_colliding_delta(&self, other: &Self, delta: Vector3<f32>) -> Vector3<f32> {
+        let dx = self.largest_movement_possible_single_axis(other, delta.x, AxisType::X);
+        let mut moved = self.clone();
+        moved.top_left.x -= dx;
+        moved.bottom_right.x -= dx;
+
+        let dy = moved.largest_movement_possible_single_axis(other, delta.y, AxisType::Y);
+        moved.top_left.y -= dy;
+        moved.bottom_right.y -= dy;
+
+        let dz = moved.largest_movement_possible_single_axis(other, delta.z, AxisType::Z);
+
+        Vector3::new(dx, dy, dz)
     }
 }

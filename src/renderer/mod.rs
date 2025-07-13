@@ -1,19 +1,17 @@
 use nalgebra::{Point3, Vector3};
 use pipeline_factory::PipelineFactory;
 use std::sync::Arc;
-use wgpu::util::{DeviceExt, RenderEncoder};
+use wgpu::util::DeviceExt;
 
 use wgpu::{
     BindGroup, Buffer, Device, DeviceDescriptor, Queue, RenderPipeline, Surface,
-    SurfaceConfiguration, VertexBufferLayout,
+    SurfaceConfiguration,
 };
 use winit::window::Window;
 
 use crate::camera::Camera;
 use crate::camera::camera_uniform::CameraUniform;
-use crate::camera::light::Light;
 use crate::camera::light_uniform::LightUniformArray;
-use crate::collision::collision_manager;
 use crate::model::Model;
 use crate::model::cube_texture::{CubeTexture, CubeTextureBuilder};
 use crate::model::depth_texture::DepthTexture;
@@ -277,7 +275,7 @@ impl Renderer {
     }
 
     pub fn update(&mut self) {
-        self.camera.update_camera(0.02, 0.004);
+        self.camera.update_camera(0.04, 0.004);
         self.camera_uniform.update_cam(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
