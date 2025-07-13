@@ -13,6 +13,7 @@ use crate::camera::Camera;
 use crate::camera::camera_uniform::CameraUniform;
 use crate::camera::light::Light;
 use crate::camera::light_uniform::LightUniformArray;
+use crate::collision::collision_manager;
 use crate::model::Model;
 use crate::model::cube_texture::{CubeTexture, CubeTextureBuilder};
 use crate::model::depth_texture::DepthTexture;
@@ -91,23 +92,6 @@ impl Renderer {
 
         surface.configure(&device, &config);
 
-        let camera = Camera {
-            position: Point3::new(0.0, 0.5, 1.0),
-            target: Point3::origin(),
-            up: Vector3::new(0.0, 1.0, 0.0),
-            aspect: size.width as f32 / size.height as f32,
-            fovy: 1.0,
-            near: 0.1,
-            far: 200.0,
-            is_w_pressed: false,
-            is_s_pressed: false,
-            is_a_pressed: false,
-            is_d_pressed: false,
-            yaw: 0.0,
-            pitch: 0.0,
-            delta: None,
-        };
-
         // layouts
         let camera_bind_group_layout = CameraUniform::create_bind_group_layout(&device);
         let diffuse_texture_layout = TextureBuilder::create_bind_group_layout(&device);
@@ -126,8 +110,25 @@ impl Renderer {
             &[&skybox_bind_group_layout, &camera_bind_group_layout],
         );
 
-        let (models, skybox_files, lights) =
+        let (models, skybox_files, lights, collision_manager) =
             Map1::get_models(&device, &queue, &diffuse_texture_layout);
+        let camera = Camera {
+            position: Point3::new(1.0, 0.5, 1.0),
+            target: Point3::origin(),
+            up: Vector3::new(0.0, 1.0, 0.0),
+            aspect: size.width as f32 / size.height as f32,
+            fovy: 1.0,
+            near: 0.01,
+            far: 200.0,
+            is_w_pressed: false,
+            is_s_pressed: false,
+            is_a_pressed: false,
+            is_d_pressed: false,
+            yaw: 0.0,
+            pitch: 0.0,
+            delta: None,
+            collision_manager,
+        };
 
         // uniforms
         let mut camera_uniform = CameraUniform::new(camera.position);

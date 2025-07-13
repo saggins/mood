@@ -22,6 +22,7 @@ pub struct Camera {
     pub yaw: f32,
     pub pitch: f32,
     pub delta: Option<(f32, f32)>,
+    pub collision_manager: CollisionManager,
 }
 
 impl Camera {
@@ -71,7 +72,7 @@ impl Camera {
     }
 
     fn camera_shift(&mut self, delta: Vector3<f32>) {
-        let valid_delta = delta;
+        let valid_delta = self.collision_manager.move_player(delta);
         self.position.x -= valid_delta.x;
         self.position.z -= valid_delta.z;
         self.target.x -= valid_delta.x;
