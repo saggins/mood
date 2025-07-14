@@ -2,6 +2,8 @@ pub mod camera_uniform;
 pub mod light;
 pub mod light_uniform;
 
+use std::time::Duration;
+
 use nalgebra::{Matrix4, Perspective3, Point3, Vector3};
 use winit::{event::ElementState, event_loop::ActiveEventLoop, keyboard::KeyCode};
 
@@ -79,7 +81,8 @@ impl Camera {
         self.target.z -= valid_delta.z;
     }
 
-    pub fn update_camera(&mut self, move_speed: f32, sensitivity: f32) {
+    pub fn update_camera(&mut self, move_speed: f32, sensitivity: f32, delta_time: Duration) {
+        let movement = move_speed * delta_time.as_secs_f32();
         if let Some(delta) = self.delta {
             self.yaw -= delta.0 * sensitivity;
             self.pitch -= delta.1 * sensitivity;
@@ -100,27 +103,27 @@ impl Camera {
         if self.is_w_pressed {
             let mut delta: Vector3<f32> = (self.position - self.target).normalize();
             delta -= delta.dot(&self.up) * self.up;
-            delta = delta.normalize() * move_speed;
+            delta = delta.normalize() * movement;
             self.camera_shift(delta);
         }
         if self.is_s_pressed {
             let mut delta: Vector3<f32> = (self.position - self.target).normalize();
             delta -= delta.dot(&self.up) * self.up;
-            delta = delta.normalize() * move_speed;
+            delta = delta.normalize() * movement;
             self.camera_shift(-delta);
         }
         if self.is_a_pressed {
             let mut delta: Vector3<f32> =
-                (self.position - self.target).normalize().cross(&self.up) * move_speed;
+                (self.position - self.target).normalize().cross(&self.up) * movement;
             delta -= delta.dot(&self.up) * self.up;
-            delta = delta.normalize() * move_speed;
+            delta = delta.normalize() * movement;
             self.camera_shift(-delta);
         }
         if self.is_d_pressed {
             let mut delta: Vector3<f32> =
-                (self.position - self.target).normalize().cross(&self.up) * move_speed;
+                (self.position - self.target).normalize().cross(&self.up) * movement;
             delta -= delta.dot(&self.up) * self.up;
-            delta = delta.normalize() * move_speed;
+            delta = delta.normalize() * movement;
             self.camera_shift(delta);
         }
     }

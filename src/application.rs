@@ -1,5 +1,5 @@
 use log::error;
-use std::sync::Arc;
+use std::{sync::Arc, time::Instant};
 
 use winit::{
     application::ApplicationHandler,
@@ -14,6 +14,7 @@ use crate::renderer::Renderer;
 #[derive(Default)]
 pub struct AppState {
     renderer: Option<Renderer>,
+    prev_frame_time: Option<Instant>,
 }
 
 impl ApplicationHandler for AppState {
@@ -31,6 +32,7 @@ impl ApplicationHandler for AppState {
                 std::process::exit(1);
             }
         };
+        self.prev_frame_time = Some(Instant::now());
         window.request_redraw();
     }
 
@@ -49,7 +51,8 @@ impl ApplicationHandler for AppState {
                 event_loop.exit();
             }
             WindowEvent::RedrawRequested => {
-                renderer.update();
+                renderer.update(self.prev_frame_time.unwrap_or_else(Instant::now).elapsed());
+                self.prev_frame_time = Some(Instant::now());
                 match renderer.render() {
                     Ok(_) => {}
                     Err(wgpu::SurfaceError::Lost | wgpu::SurfaceError::Outdated) => {

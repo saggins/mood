@@ -1,6 +1,7 @@
 use nalgebra::{Point3, Vector3};
 use pipeline_factory::PipelineFactory;
 use std::sync::Arc;
+use std::time::Duration;
 use wgpu::util::DeviceExt;
 
 use wgpu::{
@@ -274,8 +275,8 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn update(&mut self) {
-        self.camera.update_camera(0.04, 0.004);
+    pub fn update(&mut self, delta_time: Duration) {
+        self.camera.update_camera(2.0, 0.004, delta_time);
         self.camera_uniform.update_cam(&self.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
