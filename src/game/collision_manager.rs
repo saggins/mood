@@ -5,32 +5,33 @@ use super::bounding_box::BoundingBox;
 #[derive(Debug)]
 pub struct CollisionManager {
     pub map_boxes: Vec<BoundingBox>,
-    pub player_box: BoundingBox,
 }
 
 impl CollisionManager {
     /// returns the movement vector after collision calcuations.
     /// Also shifts the player's bounding box to that location.
-    pub fn move_player(&mut self, delta: Vector3<f32>) -> Vector3<f32> {
-        let mut test_box = self.player_box.clone();
-        test_box.move_by(delta);
+    pub fn move_player(
+        &mut self,
+        player_box: &mut BoundingBox,
+        velocity: Vector3<f32>,
+    ) -> Vector3<f32> {
+        let mut test_box = player_box.clone();
+        test_box.move_by(velocity);
         let colliding_boxes: Vec<&BoundingBox> = self
             .map_boxes
             .iter()
             .filter(|map_box| -> bool { test_box.is_colliding_with(map_box) })
             .collect();
         if colliding_boxes.is_empty() {
-            self.player_box.move_by(delta);
-            delta
+            player_box.move_by(velocity);
+            velocity
         } else {
-            let mut new_delta = delta;
+            let mut new_velocity = velocity;
             for colliding_box in &colliding_boxes {
-                new_delta = self
-                    .player_box
-                    .nearest_non_colliding_delta(colliding_box, new_delta);
+                new_velocity = player_box.nearest_non_colliding_delta(colliding_box, new_velocity);
             }
-            self.player_box.move_by(new_delta);
-            new_delta
+            player_box.move_by(new_velocity);
+            new_velocity
         }
     }
 }

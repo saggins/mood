@@ -3,8 +3,8 @@ use wgpu::util::DeviceExt;
 use wgpu::{BindGroupLayout, Buffer, Device, Queue};
 
 use crate::camera::light::Light;
-use crate::collision::bounding_box::BoundingBox;
-use crate::collision::collision_manager::CollisionManager;
+use crate::game::bounding_box::BoundingBox;
+use crate::game::collision_manager::CollisionManager;
 use crate::model::model_instance::{Instance, RawInstance};
 use crate::model::texture::{Texture, TextureBuilder};
 use crate::model::{Material, Mesh};
@@ -101,11 +101,6 @@ impl Map1 {
 
         let collsion_manager = CollisionManager {
             map_boxes: vec![Self::floor_box(), Self::wall_box(), Self::wall_box_2()],
-            player_box: BoundingBox {
-                top_left: Point3::new(0.9, 0.5, 0.9),
-                bottom_right: Point3::new(1.1, 0.0, 1.1),
-                collide_on_top: false,
-            },
         };
 
         let (floor_instance_buffer, floor_num_instances) = Self::floor_instance(device);
@@ -157,8 +152,8 @@ impl Map1 {
 
     fn floor_box() -> BoundingBox {
         BoundingBox {
-            top_left: Point3::new(0.0, 0.0, 0.0),
-            bottom_right: Point3::new(Self::WIDTH as f32, -1.0, Self::HEIGHT as f32),
+            top_left: Point3::new(-0.5, 0.0, -0.5),
+            bottom_right: Point3::new(Self::WIDTH as f32 + 0.5, -1.0, Self::HEIGHT as f32 + 0.5),
             collide_on_top: false,
         }
     }

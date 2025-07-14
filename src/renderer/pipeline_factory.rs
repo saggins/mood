@@ -1,6 +1,4 @@
-use wgpu::{BindGroupLayout, Device, PipelineLayout, RenderPipeline};
-
-use crate::model::depth_texture::DepthTexture;
+use wgpu::{BindGroupLayout, Device, PipelineLayout};
 
 pub struct PipelineFactory;
 

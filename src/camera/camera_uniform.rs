@@ -1,4 +1,4 @@
-use nalgebra::{Matrix4, Point3, Point4};
+use nalgebra::{Matrix4, Point3};
 use wgpu::{BindGroup, BindGroupLayout, Buffer, Device};
 
 use super::Camera;

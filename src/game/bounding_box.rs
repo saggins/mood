@@ -27,8 +27,8 @@ impl BoundingBox {
     }
 
     pub fn move_by(&mut self, delta: Vector3<f32>) {
-        self.top_left -= delta;
-        self.bottom_right -= delta;
+        self.top_left += delta;
+        self.bottom_right += delta;
     }
 
     fn largest_movement_possible_single_axis(
@@ -52,16 +52,16 @@ impl BoundingBox {
             let mut test_box = self.clone();
             match axis_type {
                 AxisType::X => {
-                    test_box.top_left.x -= move_amount;
-                    test_box.bottom_right.x -= move_amount;
+                    test_box.top_left.x += move_amount;
+                    test_box.bottom_right.x += move_amount;
                 }
                 AxisType::Y => {
-                    test_box.top_left.y -= move_amount;
-                    test_box.bottom_right.y -= move_amount;
+                    test_box.top_left.y += move_amount;
+                    test_box.bottom_right.y += move_amount;
                 }
                 AxisType::Z => {
-                    test_box.top_left.z -= move_amount;
-                    test_box.bottom_right.z -= move_amount;
+                    test_box.top_left.z += move_amount;
+                    test_box.bottom_right.z += move_amount;
                 }
             }
 
@@ -83,12 +83,12 @@ impl BoundingBox {
     pub fn nearest_non_colliding_delta(&self, other: &Self, delta: Vector3<f32>) -> Vector3<f32> {
         let dx = self.largest_movement_possible_single_axis(other, delta.x, AxisType::X);
         let mut moved = self.clone();
-        moved.top_left.x -= dx;
-        moved.bottom_right.x -= dx;
+        moved.top_left.x += dx;
+        moved.bottom_right.x += dx;
 
         let dy = moved.largest_movement_possible_single_axis(other, delta.y, AxisType::Y);
-        moved.top_left.y -= dy;
-        moved.bottom_right.y -= dy;
+        moved.top_left.y += dy;
+        moved.bottom_right.y += dy;
 
         let dz = moved.largest_movement_possible_single_axis(other, delta.z, AxisType::Z);
 

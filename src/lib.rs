@@ -1,6 +1,6 @@
 mod application;
 mod camera;
-mod collision;
+mod game;
 mod model;
 mod renderer;
 

@@ -13,6 +13,9 @@ use winit::window::Window;
 use crate::camera::Camera;
 use crate::camera::camera_uniform::CameraUniform;
 use crate::camera::light_uniform::LightUniformArray;
+use crate::game::collision_manager::CollisionManager;
+use crate::game::player::Player;
+use crate::game::player_controller::PlayerController;
 use crate::model::Model;
 use crate::model::cube_texture::{CubeTexture, CubeTextureBuilder};
 use crate::model::depth_texture::DepthTexture;
@@ -31,7 +34,8 @@ pub struct Renderer {
     config: SurfaceConfiguration,
     render_pipeline: RenderPipeline,
     models: Vec<Model>,
-    camera: Camera,
+    player: Player,
+    collision_manager: CollisionManager,
     camera_uniform: CameraUniform,
     camera_buffer: Buffer,
     camera_bind_group: BindGroup,
@@ -40,9 +44,13 @@ pub struct Renderer {
     is_surface_configured: bool,
     skybox_bind_group: BindGroup,
     skybox_render_pipeline: RenderPipeline,
+    player_controller: PlayerController,
 }
 
 impl Renderer {
+    const MOVE_SPEED: f32 = 2.0;
+    const SENSITIVITY: f32 = 0.3;
+    const JUMP_STRENGTH: f32 = 1.6;
     pub async fn new(window: Arc<Window>) -> Result<Self, String> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
@@ -113,26 +121,28 @@ impl Renderer {
             Map1::get_models(&device, &queue, &diffuse_texture_layout);
         let camera = Camera {
             position: Point3::new(1.0, 0.5, 1.0),
-            target: Point3::origin(),
+            target: Point3::new(0.0, 0.5, 0.0),
             up: Vector3::new(0.0, 1.0, 0.0),
             aspect: size.width as f32 / size.height as f32,
             fovy: 1.0,
             near: 0.01,
             far: 200.0,
-            is_w_pressed: false,
-            is_s_pressed: false,
-            is_a_pressed: false,
-            is_d_pressed: false,
-            yaw: 0.0,
-            pitch: 0.0,
-            delta: None,
-            collision_manager,
         };
+        let player = Player::new(
+            Self::SENSITIVITY,
+            Self::MOVE_SPEED,
+            Self::JUMP_STRENGTH,
+            0.1,
+            0.5,
+            camera,
+        );
+
+        let player_controller = PlayerController::default();
 
         // uniforms
-        let mut camera_uniform = CameraUniform::new(camera.position);
+        let mut camera_uniform = CameraUniform::new(player.camera.position);
         let point_light_uniform = LightUniformArray::new(&lights);
-        camera_uniform.update_cam(&camera);
+        camera_uniform.update_cam(&player.camera);
 
         // buffers
         let point_light_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -200,7 +210,8 @@ impl Renderer {
             config,
             is_surface_configured: true,
             models,
-            camera,
+            player,
+            collision_manager,
             camera_uniform,
             camera_buffer,
             camera_bind_group,
@@ -209,6 +220,7 @@ impl Renderer {
             render_pipeline,
             skybox_bind_group,
             skybox_render_pipeline,
+            player_controller,
         })
     }
 
@@ -275,9 +287,10 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn update(&mut self, delta_time: Duration) {
-        self.camera.update_camera(2.0, 0.004, delta_time);
-        self.camera_uniform.update_cam(&self.camera);
+    pub fn update(&mut self, dt: Duration) {
+        self.player
+            .update(dt, &mut self.collision_manager, &mut self.player_controller);
+        self.camera_uniform.update_cam(&self.player.camera);
         self.queue.write_buffer(
             &self.camera_buffer,
             0,
@@ -296,8 +309,8 @@ impl Renderer {
         }
     }
 
-    pub fn get_mut_camera(&mut self) -> &mut Camera {
-        &mut self.camera
+    pub fn get_mut_player_controller(&mut self) -> &mut PlayerController {
+        &mut self.player_controller
     }
 
     pub fn get_window(&self) -> &Arc<Window> {
