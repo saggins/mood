@@ -22,6 +22,9 @@ impl PipelineFactory {
         vertex_layouts: &[wgpu::VertexBufferLayout],
         topology: wgpu::PrimitiveTopology,
         shader: wgpu::ShaderModuleDescriptor,
+        cull_mode: Option<wgpu::Face>,
+        depth_write_enabled: bool,
+        depth_compare: wgpu::CompareFunction,
     ) -> wgpu::RenderPipeline {
         let shader = device.create_shader_module(shader);
 
@@ -48,7 +51,7 @@ impl PipelineFactory {
                 topology,
                 strip_index_format: None,
                 front_face: wgpu::FrontFace::Ccw,
-                cull_mode: Some(wgpu::Face::Back),
+                cull_mode,
                 // Setting this to anything other than Fill requires Features::NON_FILL_POLYGON_MODE
                 polygon_mode: wgpu::PolygonMode::Fill,
                 // Requires Features::DEPTH_CLIP_CONTROL
@@ -58,8 +61,8 @@ impl PipelineFactory {
             },
             depth_stencil: depth_format.map(|format| wgpu::DepthStencilState {
                 format,
-                depth_write_enabled: true,
-                depth_compare: wgpu::CompareFunction::LessEqual,
+                depth_write_enabled,
+                depth_compare,
                 stencil: wgpu::StencilState::default(),
                 bias: wgpu::DepthBiasState::default(),
             }),

@@ -7,6 +7,7 @@ pub struct PlayerController {
     pub is_a_pressed: bool,
     pub is_d_pressed: bool,
     pub is_space_pressed: bool,
+    pub debug_enabled: bool,
     pub delta_mouse_pos: Option<(f32, f32)>,
 }
 
@@ -36,6 +37,10 @@ impl PlayerController {
             }
             KeyCode::KeyA => {
                 self.is_a_pressed = state.is_pressed();
+                true
+            }
+            KeyCode::KeyG => {
+                self.debug_enabled = state.is_pressed();
                 true
             }
             KeyCode::Space => {

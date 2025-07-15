@@ -22,7 +22,7 @@ use crate::model::depth_texture::DepthTexture;
 use crate::model::maps::map_1::Map1;
 use crate::model::model_instance::RawInstance;
 use crate::model::texture::TextureBuilder;
-use crate::model::vertex::Vertex;
+use crate::model::vertex::{LineVertex, Vertex};
 
 mod pipeline_factory;
 
@@ -45,6 +45,9 @@ pub struct Renderer {
     skybox_bind_group: BindGroup,
     skybox_render_pipeline: RenderPipeline,
     player_controller: PlayerController,
+    debug_render_pipeline: RenderPipeline,
+    debug_lines_len: u32,
+    debug_buffer: Buffer,
 }
 
 impl Renderer {
@@ -116,9 +119,12 @@ impl Renderer {
             &device,
             &[&skybox_bind_group_layout, &camera_bind_group_layout],
         );
+        let debug_pipeline_layout =
+            PipelineFactory::create_render_pipeline_layout(&device, &[&camera_bind_group_layout]);
 
-        let (models, skybox_files, lights, collision_manager) =
+        let (models, skybox_files, lights, collision_manager, debug_lines) =
             Map1::get_models(&device, &queue, &diffuse_texture_layout);
+        let debug_lines_len = debug_lines.len() as u32;
         let camera = Camera {
             position: Point3::new(1.0, 0.5, 1.0),
             target: Point3::new(0.0, 0.5, 0.0),
@@ -155,6 +161,11 @@ impl Renderer {
             contents: bytemuck::cast_slice(&[camera_uniform]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
+        let debug_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Map1 Debug Buffer"),
+            contents: bytemuck::cast_slice(&debug_lines),
+            usage: wgpu::BufferUsages::VERTEX,
+        });
 
         // textures
         let skybox_texture =
@@ -187,6 +198,9 @@ impl Renderer {
                 label: Some("Normal Shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shader.wgsl").into()),
             },
+            Some(wgpu::Face::Back),
+            true,
+            wgpu::CompareFunction::LessEqual,
         );
 
         let skybox_render_pipeline = PipelineFactory::create_render_pipeline(
@@ -200,6 +214,25 @@ impl Renderer {
                 label: Some("Skybox Shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shaders/skybox.wgsl").into()),
             },
+            Some(wgpu::Face::Back),
+            true,
+            wgpu::CompareFunction::LessEqual,
+        );
+
+        let debug_render_pipeline = PipelineFactory::create_render_pipeline(
+            &device,
+            &debug_pipeline_layout,
+            config.format,
+            Some(DepthTexture::DEPTH_FORMAT),
+            &[LineVertex::desc()],
+            wgpu::PrimitiveTopology::LineList,
+            wgpu::ShaderModuleDescriptor {
+                label: Some("Debug Shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/debug.wgsl").into()),
+            },
+            None,
+            false,
+            wgpu::CompareFunction::Always,
         );
 
         Ok(Self {
@@ -221,6 +254,9 @@ impl Renderer {
             skybox_bind_group,
             skybox_render_pipeline,
             player_controller,
+            debug_render_pipeline,
+            debug_lines_len,
+            debug_buffer,
         })
     }
 
@@ -278,6 +314,13 @@ impl Renderer {
             render_pass.set_bind_group(0, &self.skybox_bind_group, &[]);
             render_pass.set_bind_group(1, &self.camera_bind_group, &[]);
             render_pass.draw(0..3, 0..1);
+
+            if self.player_controller.debug_enabled {
+                render_pass.set_pipeline(&self.debug_render_pipeline);
+                render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+                render_pass.set_vertex_buffer(0, self.debug_buffer.slice(..));
+                render_pass.draw(0..self.debug_lines_len, 0..1);
+            }
         }
 
         // submit will accept anything that implements IntoIter

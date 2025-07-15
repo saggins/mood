@@ -7,9 +7,14 @@ use crate::game::bounding_box::BoundingBox;
 use crate::game::collision_manager::CollisionManager;
 use crate::model::model_instance::{Instance, RawInstance};
 use crate::model::texture::{Texture, TextureBuilder};
+use crate::model::vertex::LineVertex;
 use crate::model::{Material, Mesh};
 use crate::model::{Model, vertex::Vertex};
 
+/// NOTE THIS FILE IS FOR TESTING ONLY
+/// IT CONTAINS HARD CODED MESH VALUES
+/// WHICH *SHOULD* BE LOADED FROM A FILE
+/// LATER. THIS IS JUST FOR TESTING
 pub struct Map1;
 
 impl Map1 {
@@ -19,7 +24,13 @@ impl Map1 {
         device: &Device,
         queue: &Queue,
         bind_group_layout: &BindGroupLayout,
-    ) -> (Vec<Model>, Vec<String>, Vec<Light>, CollisionManager) {
+    ) -> (
+        Vec<Model>,
+        Vec<String>,
+        Vec<Light>,
+        CollisionManager,
+        Vec<LineVertex>,
+    ) {
         let floor_material = Self::load_texture(
             "textures/map1/sand.png",
             "textures/map1/sand_normal.png",
@@ -99,9 +110,16 @@ impl Map1 {
             },
         ];
 
-        let collsion_manager = CollisionManager {
-            map_boxes: vec![Self::floor_box(), Self::wall_box(), Self::wall_box_2()],
-        };
+        let map_boxes = vec![Self::floor_box(), Self::wall_box(), Self::wall_box_2()];
+        let mut debug_map_box_lines = vec![];
+        for map_box in &map_boxes {
+            let box_debug_lines = Self::bounding_box_to_line_vertices(map_box, [1.0, 0.0, 0.0]);
+            for box_debug_line in box_debug_lines {
+                debug_map_box_lines.push(box_debug_line);
+            }
+        }
+
+        let collsion_manager = CollisionManager { map_boxes };
 
         let (floor_instance_buffer, floor_num_instances) = Self::floor_instance(device);
         let (outer_wall_instance_buffer, outer_wall_num_instances) =
@@ -147,28 +165,76 @@ impl Map1 {
                 },
             ],
             collsion_manager,
+            debug_map_box_lines,
         )
+    }
+
+    fn bounding_box_to_line_vertices(bbox: &BoundingBox, color: [f32; 3]) -> Vec<LineVertex> {
+        let top_left = bbox.top_left;
+        let bottom_right = bbox.bottom_right;
+
+        // Calculate the 8 corners of the bounding box
+        let corners = [
+            [top_left.x, bottom_right.y, top_left.z],
+            [bottom_right.x, bottom_right.y, top_left.z],
+            [bottom_right.x, bottom_right.y, bottom_right.z],
+            [top_left.x, bottom_right.y, bottom_right.z],
+            // Top face (higher Y)
+            [top_left.x, top_left.y, top_left.z],
+            [bottom_right.x, top_left.y, top_left.z],
+            [bottom_right.x, top_left.y, bottom_right.z],
+            [top_left.x, top_left.y, bottom_right.z],
+        ];
+
+        let edges = [
+            (0, 1),
+            (1, 2),
+            (2, 3),
+            (3, 0),
+            (4, 5),
+            (5, 6),
+            (6, 7),
+            (7, 4),
+            (0, 4),
+            (1, 5),
+            (2, 6),
+            (3, 7),
+        ];
+
+        let mut vertices = Vec::with_capacity(24);
+        for (start_idx, end_idx) in edges {
+            vertices.push(LineVertex {
+                position: corners[start_idx],
+                color,
+            });
+            vertices.push(LineVertex {
+                position: corners[end_idx],
+                color,
+            });
+        }
+
+        vertices
     }
 
     fn floor_box() -> BoundingBox {
         BoundingBox {
             top_left: Point3::new(-0.5, 0.0, -0.5),
-            bottom_right: Point3::new(Self::WIDTH as f32 + 0.5, -1.0, Self::HEIGHT as f32 + 0.5),
+            bottom_right: Point3::new(Self::WIDTH as f32 - 0.5, -1.0, Self::HEIGHT as f32 - 0.5),
             collide_on_top: false,
         }
     }
 
     fn wall_box() -> BoundingBox {
         BoundingBox {
-            top_left: Point3::new(0.0, 1.0, -1.5),
-            bottom_right: Point3::new(Self::WIDTH as f32, 0.0, -0.5),
+            top_left: Point3::new(-0.5, 1.0, -1.5),
+            bottom_right: Point3::new(Self::WIDTH as f32 - 0.5, 0.0, -0.5),
             collide_on_top: true,
         }
     }
     fn wall_box_2() -> BoundingBox {
         BoundingBox {
             top_left: Point3::new(Self::WIDTH as f32 - 0.5, 1.0, -0.5),
-            bottom_right: Point3::new(Self::WIDTH as f32, 0.0, Self::HEIGHT as f32),
+            bottom_right: Point3::new(Self::WIDTH as f32 + 0.5, 0.0, Self::HEIGHT as f32 - 0.5),
             collide_on_top: true,
         }
     }
