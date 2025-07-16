@@ -19,7 +19,7 @@ use crate::game::player_controller::PlayerController;
 use crate::model::Model;
 use crate::model::cube_texture::{CubeTexture, CubeTextureBuilder};
 use crate::model::depth_texture::DepthTexture;
-use crate::model::maps::map_1::Map1;
+use crate::model::map_loader::MapLoader;
 use crate::model::model_instance::RawInstance;
 use crate::model::texture::TextureBuilder;
 use crate::model::vertex::{LineVertex, Vertex};
@@ -122,8 +122,13 @@ impl Renderer {
         let debug_pipeline_layout =
             PipelineFactory::create_render_pipeline_layout(&device, &[&camera_bind_group_layout]);
 
-        let (models, skybox_files, lights, collision_manager, debug_lines) =
-            Map1::get_models(&device, &queue, &diffuse_texture_layout);
+        let map_loader = MapLoader::from_file("src/model/maps/map_1.json").unwrap();
+        let map = map_loader.load(&device, &queue, &diffuse_texture_layout);
+        let models = map.models;
+        let skybox_files = map.skybox_textures;
+        let lights = map.lights;
+        let collision_manager = map.collision_manager;
+        let debug_lines = map.debug_lines;
         let debug_lines_len = debug_lines.len() as u32;
         let camera = Camera {
             position: Point3::new(1.0, 0.5, 1.0),

@@ -1,0 +1,330 @@
+{
+    "skybox": [
+        "textures/map1/skybox/right.jpg",
+        "textures/map1/skybox/left.jpg",
+        "textures/map1/skybox/top.jpg",
+        "textures/map1/skybox/bottom.jpg",
+        "textures/map1/skybox/front.jpg",
+        "textures/map1/skybox/back.jpg"
+    ],
+    "lights": [
+        {
+            "position": [
+                3.0,
+                0.5,
+                0.5
+            ],
+            "color": [
+                1.0,
+                0.0,
+                0.0
+            ],
+            "intensity": 1.0
+        },
+        {
+            "position": [
+                3.0,
+                0.5,
+                3.0
+            ],
+            "color": [
+                0.0,
+                1.0,
+                0.0
+            ],
+            "intensity": 1.0
+        },
+        {
+            "position": [
+                6.0,
+                0.5,
+                2.0
+            ],
+            "color": [
+                0.0,
+                0.0,
+                1.0
+            ],
+            "intensity": 1.0
+        }
+    ],
+    "materials": [
+        {
+            "name": "sandy_footprints",
+            "texture_map": "textures/map1/sand.png",
+            "normal_map": "textures/map1/sand_normal.png"
+        },
+        {
+            "name": "sandstone_bricks",
+            "texture_map": "textures/map1/bricks.png",
+            "normal_map": "textures/map1/bricks_normal.png"
+        }
+    ],
+    "models": [
+        {
+            "meshes": [
+                {
+                    "name": "Sandy Floor",
+                    "vertices": [
+                        {
+                            "position": [
+                                -0.5,
+                                0.0,
+                                -0.5
+                            ],
+                            "tex_coords": [
+                                0.0,
+                                0.0
+                            ],
+                            "normal": [
+                                0.0,
+                                1.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "position": [
+                                0.5,
+                                0.0,
+                                -0.5
+                            ],
+                            "tex_coords": [
+                                1.0,
+                                0.0
+                            ],
+                            "normal": [
+                                0.0,
+                                1.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "position": [
+                                0.5,
+                                0.0,
+                                0.5
+                            ],
+                            "tex_coords": [
+                                1.0,
+                                1.0
+                            ],
+                            "normal": [
+                                0.0,
+                                1.0,
+                                0.0
+                            ]
+                        },
+                        {
+                            "position": [
+                                -0.5,
+                                0.0,
+                                0.5
+                            ],
+                            "tex_coords": [
+                                0.0,
+                                1.0
+                            ],
+                            "normal": [
+                                0.0,
+                                1.0,
+                                0.0
+                            ]
+                        }
+                    ],
+                    "indices": [
+                        0,
+                        2,
+                        1,
+                        0,
+                        3,
+                        2
+                    ],
+                    "material": "sandy_footprints"
+                }
+            ],
+            "instances": [
+                {
+                    "is_grid": true,
+                    "position": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ],
+                    "width": 8,
+                    "height": 1,
+                    "depth": 8,
+                    "rotation": [
+                        [
+                            1,
+                            0,
+                            0
+                        ],
+                        [
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            1
+                        ]
+                    ]
+                }
+            ]
+        },
+        {
+            "meshes": [
+                {
+                    "name": "Sandstone Bricks",
+                    "vertices": [
+                        {
+                            "position": [
+                                -0.5,
+                                -0.5,
+                                0.0
+                            ],
+                            "tex_coords": [
+                                0.0,
+                                0.0
+                            ],
+                            "normal": [
+                                0.0,
+                                0.0,
+                                -1.0
+                            ]
+                        },
+                        {
+                            "position": [
+                                0.5,
+                                -0.5,
+                                0.0
+                            ],
+                            "tex_coords": [
+                                1.0,
+                                0.0
+                            ],
+                            "normal": [
+                                0.0,
+                                0.0,
+                                -1.0
+                            ]
+                        },
+                        {
+                            "position": [
+                                0.5,
+                                0.5,
+                                0.0
+                            ],
+                            "tex_coords": [
+                                1.0,
+                                1.0
+                            ],
+                            "normal": [
+                                0.0,
+                                0.0,
+                                -1.0
+                            ]
+                        },
+                        {
+                            "position": [
+                                -0.5,
+                                0.5,
+                                0.0
+                            ],
+                            "tex_coords": [
+                                0.0,
+                                1.0
+                            ],
+                            "normal": [
+                                0.0,
+                                0.0,
+                                -1.0
+                            ]
+                        }
+                    ],
+                    "indices": [
+                        0,
+                        2,
+                        1,
+                        0,
+                        3,
+                        2
+                    ],
+                    "material": "sandstone_bricks"
+                }
+            ],
+            "instances": [
+                {
+                    "is_grid": true,
+                    "position": [
+                        0.0,
+                        0.5,
+                        -0.5
+                    ],
+                    "width": 8,
+                    "height": 1,
+                    "depth": 1,
+                    "rotation": [
+                        [
+                            -1,
+                            0,
+                            0
+                        ],
+                        [
+                            0,
+                            1,
+                            0
+                        ],
+                        [
+                            0,
+                            0,
+                            -1
+                        ]
+                    ]
+                }
+            ]
+        }
+    ],
+    "bounding_boxes": [
+        {
+            "top_left": [
+                -0.5,
+                0.0,
+                -0.5
+            ],
+            "bottom_right": [
+                7.5,
+                -1.0,
+                7.5
+            ],
+            "collide_on_top": false
+        },
+        {
+            "top_left": [
+                -0.5,
+                1.0,
+                -1.5
+            ],
+            "bottom_right": [
+                7.5,
+                0.0,
+                -0.5
+            ],
+            "collide_on_top": false
+        },
+        {
+            "top_left": [
+                7.5,
+                1.0,
+                -0.5
+            ],
+            "bottom_right": [
+                8.5,
+                0.0,
+                7.5
+            ],
+            "collide_on_top": false
+        }
+    ]
+}
