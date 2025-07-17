@@ -1,8 +1,8 @@
+use nalgebra::{Matrix3, Point3, Vector3};
+use rayon::prelude::*;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::{collections::HashMap, error::Error, fs};
-
-use nalgebra::{Matrix3, Point3, Vector3};
-use serde::{Deserialize, Serialize};
 use wgpu::util::DeviceExt;
 use wgpu::{BindGroupLayout, Device, Queue};
 
@@ -137,7 +137,7 @@ impl MapLoader {
 
         let materials: Arc<HashMap<String, Material>> = Arc::new(
             self.materials
-                .iter()
+                .par_iter()
                 .map(|material| -> (String, Material) {
                     (
                         String::from(&material.name),

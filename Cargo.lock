@@ -1208,6 +1208,7 @@ dependencies = [
  "log",
  "nalgebra",
  "pollster",
+ "rayon",
  "serde",
  "serde_json",
  "wgpu",

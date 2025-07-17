@@ -5,7 +5,7 @@ use winit::{
     application::ApplicationHandler,
     event::{DeviceEvent, KeyEvent, WindowEvent},
     event_loop::ActiveEventLoop,
-    keyboard::PhysicalKey,
+    keyboard::{KeyCode, PhysicalKey},
     window::WindowAttributes,
 };
 
@@ -25,7 +25,10 @@ impl ApplicationHandler for AppState {
                 .unwrap(),
         );
 
-        self.renderer = match pollster::block_on(Renderer::new(window.clone())) {
+        self.renderer = match pollster::block_on(Renderer::new(
+            window.clone(),
+            String::from("src/model/maps/map_1.json"),
+        )) {
             Ok(r) => Some(r),
             Err(e) => {
                 error!("{e}");
@@ -73,7 +76,11 @@ impl ApplicationHandler for AppState {
                     },
                 ..
             } => {
-                if renderer
+                // Special key for reloading the renderer
+                if code == KeyCode::KeyB && state.is_pressed() {
+                    renderer.rerender();
+                    renderer.get_window().as_ref().request_redraw();
+                } else if renderer
                     .get_mut_player_controller()
                     .handle_key_held(code, state, event_loop)
                 {

@@ -1,5 +1,5 @@
-use image::{GenericImageView, RgbaImage};
-use std::fs;
+use image::RgbaImage;
+use rayon::prelude::*;
 use wgpu::{BindGroup, BindGroupLayout, Device, Extent3d, Queue};
 
 pub struct CubeTextureBuilder;
@@ -65,22 +65,22 @@ impl CubeTexture {
         label: Option<&str>,
     ) -> Self {
         assert_eq!(files.len(), 6, "Cube maps must contain exactly 6 textures.");
-        let mut dimensions: Option<(u32, u32)> = None;
         let rgbas: Vec<RgbaImage> = files
-            .iter()
+            .par_iter()
             .map(|filename| -> RgbaImage {
-                let file_bytes = fs::read(filename).expect("Failed to read image file");
-                let image = image::load_from_memory(&file_bytes).expect("Failed to load image");
-                let dim = image.dimensions();
-                if let Some((w, h)) = dimensions {
-                    assert_eq!((w, h), dim, "All cubemap faces must be same dimensions");
-                } else {
-                    dimensions = Some((dim.0, dim.1));
-                }
+                let image = image::open(filename).expect("Failed to load image");
                 image.to_rgba8()
             })
             .collect();
-        let (w, h) = dimensions.unwrap();
+        let first_dim = rgbas[0].dimensions();
+        for rgba in &rgbas[1..] {
+            assert_eq!(
+                first_dim,
+                rgba.dimensions(),
+                "All cubemap faces must be same dimensions"
+            );
+        }
+        let (w, h) = first_dim;
         let size = Extent3d {
             width: w,
             height: h,

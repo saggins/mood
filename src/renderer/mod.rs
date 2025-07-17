@@ -32,29 +32,30 @@ pub struct Renderer {
     device: Device,
     queue: Queue,
     config: SurfaceConfiguration,
-    render_pipeline: RenderPipeline,
     models: Vec<Model>,
     player: Player,
+    is_surface_configured: bool,
+    debug_lines_len: u32,
+    player_controller: PlayerController,
+    map_file: String,
+    depth_texture: DepthTexture,
     collision_manager: CollisionManager,
     camera_uniform: CameraUniform,
     camera_buffer: Buffer,
+    debug_buffer: Buffer,
     camera_bind_group: BindGroup,
     point_light_bind_group: BindGroup,
-    depth_texture: DepthTexture,
-    is_surface_configured: bool,
     skybox_bind_group: BindGroup,
     skybox_render_pipeline: RenderPipeline,
-    player_controller: PlayerController,
     debug_render_pipeline: RenderPipeline,
-    debug_lines_len: u32,
-    debug_buffer: Buffer,
+    render_pipeline: RenderPipeline,
 }
 
 impl Renderer {
     const MOVE_SPEED: f32 = 2.0;
     const SENSITIVITY: f32 = 0.3;
     const JUMP_STRENGTH: f32 = 1.6;
-    pub async fn new(window: Arc<Window>) -> Result<Self, String> {
+    pub async fn new(window: Arc<Window>, map_file: String) -> Result<Self, String> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
             ..Default::default()
@@ -122,7 +123,7 @@ impl Renderer {
         let debug_pipeline_layout =
             PipelineFactory::create_render_pipeline_layout(&device, &[&camera_bind_group_layout]);
 
-        let map_loader = MapLoader::from_file("src/model/maps/map_1.json").unwrap();
+        let map_loader = MapLoader::from_file(&map_file).unwrap();
         let map = map_loader.load(&device, &queue, &diffuse_texture_layout);
         let models = map.models;
         let skybox_files = map.skybox_textures;
@@ -250,6 +251,7 @@ impl Renderer {
             models,
             player,
             collision_manager,
+            map_file,
             camera_uniform,
             camera_buffer,
             camera_bind_group,
@@ -355,6 +357,62 @@ impl Renderer {
             self.depth_texture =
                 DepthTexture::create_depth_texture(&self.device, &self.config, "depth_texture");
         }
+    }
+
+    pub fn rerender(&mut self) {
+        let diffuse_texture_layout = TextureBuilder::create_bind_group_layout(&self.device);
+        let skybox_bind_group_layout = CubeTextureBuilder::create_bind_group_layout(&self.device);
+        let point_light_bind_group_layout =
+            LightUniformArray::create_bind_group_layout(&self.device);
+
+        let map_loader = MapLoader::from_file(&self.map_file).unwrap();
+        let map = map_loader.load(&self.device, &self.queue, &diffuse_texture_layout);
+        let models = map.models;
+        let skybox_files = map.skybox_textures;
+        let lights = map.lights;
+        let collision_manager = map.collision_manager;
+        let debug_lines = map.debug_lines;
+        let debug_lines_len = debug_lines.len() as u32;
+
+        let point_light_uniform = LightUniformArray::new(&lights);
+
+        let point_light_buffer =
+            self.device
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Point Light Buffer"),
+                    contents: bytemuck::cast_slice(&[point_light_uniform]),
+                    usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+                });
+        let debug_buffer = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Map1 Debug Buffer"),
+                contents: bytemuck::cast_slice(&debug_lines),
+                usage: wgpu::BufferUsages::VERTEX,
+            });
+
+        let point_light_bind_group = LightUniformArray::create_bind_group(
+            &self.device,
+            &point_light_bind_group_layout,
+            &point_light_buffer,
+        );
+        let skybox_texture = CubeTexture::from_files(
+            &skybox_files,
+            &self.device,
+            &self.queue,
+            Some("Skybox Texture"),
+        );
+        let skybox_bind_group = CubeTextureBuilder::create_bind_group(
+            &self.device,
+            &skybox_texture,
+            &skybox_bind_group_layout,
+        );
+        self.skybox_bind_group = skybox_bind_group;
+        self.models = models;
+        self.point_light_bind_group = point_light_bind_group;
+        self.debug_buffer = debug_buffer;
+        self.debug_lines_len = debug_lines_len;
+        self.collision_manager = collision_manager;
     }
 
     pub fn get_mut_player_controller(&mut self) -> &mut PlayerController {
