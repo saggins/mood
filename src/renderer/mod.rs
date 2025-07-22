@@ -307,6 +307,7 @@ impl Renderer {
             return Ok(());
         }
 
+        // Shadow render pass
         for light in &self.lights {
             self.scene_shadow_baker.get_light_shadow_map(
                 light,
@@ -317,6 +318,7 @@ impl Renderer {
                 &self.shadow_bind_group_layout,
             );
         }
+
         let output = self.surface.get_current_texture()?;
         let view = output
             .texture
