@@ -32,15 +32,6 @@ struct VertexInput {
     @location(4) bitangent: vec3<f32>
 };
 
-struct VertexOutput {
-    @builtin(position) clip_position: vec4<f32>,
-    @location(0) tex_coords: vec2<f32>,
-    @location(1) tangent_position: vec3<f32>,
-    @location(2) tangent_view_position: vec3<f32>,
-    @location(3) T: vec3<f32>,
-    @location(4) B: vec3<f32>,
-    @location(5) N: vec3<f32>
-};
 
 struct InstanceInput {
     @location(5) model_matrix_0: vec4<f32>,
@@ -51,6 +42,17 @@ struct InstanceInput {
     @location(10) normal_matrix_1: vec3<f32>,
     @location(11) normal_matrix_2: vec3<f32>,
 }
+
+struct VertexOutput {
+    @builtin(position) clip_position: vec4<f32>,
+    @location(0) tex_coords: vec2<f32>,
+    @location(1) tangent_position: vec3<f32>,
+    @location(2) tangent_view_position: vec3<f32>,
+    @location(3) T: vec3<f32>,
+    @location(4) B: vec3<f32>,
+    @location(5) N: vec3<f32>,
+    @location(6) world_position: vec4<f32>,
+};
 
 @vertex
 fn vs_main(
@@ -87,16 +89,22 @@ fn vs_main(
     out.tex_coords = model.tex_coords;
     out.tangent_position = tangent_matrix * world_position.xyz;
     out.tangent_view_position = tangent_matrix * camera.view_pos.xyz;
+    out.world_position = world_position;
     return out;
 }
 
 @group(2) @binding(0)
-var t_diffuse: texture_2d<f32>;
+var shadow_maps: texture_depth_cube_array;
 @group(2) @binding(1)
+var shadow_sampler: sampler_comparison;
+
+@group(3) @binding(0)
+var t_diffuse: texture_2d<f32>;
+@group(3) @binding(1)
 var s_diffuse: sampler;
-@group(2) @binding(2)
+@group(3) @binding(2)
 var t_normal: texture_2d<f32>;
-@group(2) @binding(3)
+@group(3) @binding(3)
 var s_normal: sampler;
 
 @fragment
@@ -126,8 +134,18 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let spec_angle = max(dot(tangent_normal, half_dir), 0.0);
             specular = pow(spec_angle, 16.0);
         }
+
+        let world_light_dir = in.world_position.xyz - point_lights.lights[i].position;
+        let shadow_dist = length(world_light_dir);
+        let shadow = textureSampleCompare(
+            shadow_maps,
+            shadow_sampler,
+            normalize(world_light_dir),
+            i,
+            shadow_dist
+        );
         
-        color += light_color * (specular + diffuse) * attenuation * light_intensity;
+        color += light_color * (specular + diffuse) * attenuation * light_intensity * shadow;
     }
     
     let texture_color = textureSample(t_diffuse, s_diffuse, in.tex_coords);

@@ -1,6 +1,7 @@
 pub mod camera_uniform;
 pub mod light;
 pub mod light_uniform;
+pub mod shadow_map_uniform;
 
 use nalgebra::{Matrix4, Perspective3, Point3, Vector3};
 

@@ -39,7 +39,7 @@ impl Model {
         render_pass.set_vertex_buffer(1, self.instance_buffer.slice(..));
         for mesh in &self.meshes {
             render_pass.set_bind_group(
-                2,
+                3,
                 &self.materials.get(&mesh.material).unwrap().bind_group,
                 &[],
             );

@@ -1,47 +1,26 @@
 use rand::random;
 use std::collections::HashMap;
 use wgpu::util::DeviceExt;
-use wgpu::{BindGroup, BindGroupLayout, Device, Queue, RenderPipeline};
+use wgpu::{BindGroupLayout, Device, Queue, RenderPipeline};
 
+use crate::camera::shadow_map_uniform::ShadowMapUniform;
 use crate::{
     camera::light::Light,
     model::{Model, cube_texture::CubeTexture},
 };
 
 pub struct SceneShadowBaker {
-    pub cached_shadow_maps: HashMap<u32, CachedShadowMap>,
-    pub scene_version: u64,
-    pub light_versions: HashMap<u32, u64>,
+    pub shadow_map_texture: CubeTexture,
+    cached_shadow_maps: HashMap<u32, CachedShadowMap>,
+    scene_version: u64,
+    light_versions: HashMap<u32, u64>,
 }
 
 pub struct CachedShadowMap {
-    pub texture: CubeTexture,
     pub scene_version: u64,
     pub light_version: u64,
-}
-
-pub struct ShadowUniform;
-
-impl ShadowUniform {
-    pub fn create_bind_group_layout(device: &Device) -> BindGroupLayout {
-        device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            }],
-            label: Some("shadow_map_bind_group_layout"),
-        })
-    }
-
-    pub fn create_bind_group(device: &Device) -> BindGroup {
-        todo!()
-    }
+    // Togged on the first render since we always need to update the scene the first time.
+    pub init: bool,
 }
 
 impl SceneShadowBaker {
@@ -53,32 +32,34 @@ impl SceneShadowBaker {
             .map(|id| (*id, Self::INIT_VERSION))
             .collect();
         let num_lights = light_ids.len();
+        let shadow_map_texture = CubeTexture::new_shadow_map(
+            device,
+            Self::RESOLUTION,
+            num_lights as u32,
+            Some("Shadow Map"),
+        );
         let cached_shadow_maps = light_ids
             .iter()
             .map(|id| {
                 (
                     *id,
                     CachedShadowMap {
-                        texture: CubeTexture::new_shadow_map(
-                            device,
-                            Self::RESOLUTION,
-                            num_lights as u32,
-                            Some("Shadow Map"),
-                        ),
                         scene_version: Self::INIT_VERSION,
                         light_version: Self::INIT_VERSION,
+                        init: false,
                     },
                 )
             })
             .collect();
         Self {
             cached_shadow_maps,
+            shadow_map_texture,
             scene_version: Self::INIT_VERSION,
             light_versions,
         }
     }
 
-    pub fn get_light_shadow_map(
+    pub fn update_light_shadow_map(
         &mut self,
         light: &Light,
         device: &Device,
@@ -86,7 +67,7 @@ impl SceneShadowBaker {
         models: &[Model],
         shadow_pipeline: &RenderPipeline,
         shadow_bind_group_layout: &BindGroupLayout,
-    ) -> &CubeTexture {
+    ) {
         let current_scene_version = self.scene_version;
         let current_light_version = *self.light_versions.get(&light.id).unwrap();
 
@@ -97,6 +78,7 @@ impl SceneShadowBaker {
             .all(|cached_shadow| {
                 cached_shadow.scene_version != current_scene_version
                     || cached_shadow.light_version != current_light_version
+                    || !cached_shadow.init
             });
 
         if needs_rebake {
@@ -112,8 +94,6 @@ impl SceneShadowBaker {
             cached_shadow_map.scene_version = current_scene_version;
             cached_shadow_map.light_version = current_light_version;
         }
-
-        &self.cached_shadow_maps.get(&light.id).unwrap().texture
     }
 
     fn bake_shadows(
@@ -125,14 +105,13 @@ impl SceneShadowBaker {
         shadow_pipeline: &RenderPipeline,
         shadow_bind_group_layout: &BindGroupLayout,
     ) {
-        let cached = self.cached_shadow_maps.get(&light.id).unwrap();
-
         for face_index in 0..6 {
-            let view_proj: [[f32; 4]; 4] = light.get_view_proj_matrix_for_face(face_index).into();
+            let shadow_map_uniform =
+                ShadowMapUniform::get_uniform_map_for_face(light.position, face_index);
             let light_camera_uniform_buffer =
                 device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                     label: Some("Shadow ViewProj Buffer"),
-                    contents: bytemuck::cast_slice(&[view_proj]),
+                    contents: bytemuck::cast_slice(&[shadow_map_uniform]),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 });
 
@@ -145,7 +124,7 @@ impl SceneShadowBaker {
                 label: Some("Shadow Bind Group"),
             });
 
-            let face_view = cached.texture.create_view_from_face(
+            let face_view = self.shadow_map_texture.create_view_from_face(
                 light.id,
                 face_index,
                 Some("shadow map face view"),
@@ -182,7 +161,7 @@ impl SceneShadowBaker {
     }
 
     pub fn update_scene_version(&mut self) {
-        self.scene_version = random::<u64>();
+        self.scene_version += 1;
     }
 
     pub fn update_light_version_from_id(&mut self, light_id: u32) {

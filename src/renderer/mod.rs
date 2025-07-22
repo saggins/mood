@@ -1,6 +1,6 @@
 use nalgebra::{Point3, Vector3};
 use pipeline_factory::PipelineFactory;
-use scene_shadow_baker::{SceneShadowBaker, ShadowUniform};
+use scene_shadow_baker::SceneShadowBaker;
 use std::sync::Arc;
 use std::time::Duration;
 use wgpu::util::DeviceExt;
@@ -15,6 +15,7 @@ use crate::camera::Camera;
 use crate::camera::camera_uniform::CameraUniform;
 use crate::camera::light::Light;
 use crate::camera::light_uniform::LightUniformArray;
+use crate::camera::shadow_map_uniform::ShadowMapUniform;
 use crate::game::collision_manager::CollisionManager;
 use crate::game::player::Player;
 use crate::game::player_controller::PlayerController;
@@ -51,6 +52,7 @@ pub struct Renderer {
     camera_bind_group: BindGroup,
     point_light_bind_group: BindGroup,
     skybox_bind_group: BindGroup,
+    shadow_bind_group: BindGroup,
     shadow_bind_group_layout: BindGroupLayout,
     skybox_render_pipeline: RenderPipeline,
     debug_render_pipeline: RenderPipeline,
@@ -115,12 +117,14 @@ impl Renderer {
         let diffuse_texture_layout = TextureBuilder::create_bind_group_layout(&device);
         let point_light_bind_group_layout = LightUniformArray::create_bind_group_layout(&device);
         let skybox_bind_group_layout = CubeTextureBuilder::create_bind_group_layout(&device);
-        let shadow_bind_group_layout = ShadowUniform::create_bind_group_layout(&device);
+        let shadow_bind_group_layout = ShadowMapUniform::create_bind_group_layout(&device);
+        let shadow_texture_layout = ShadowMapUniform::create_shadow_texture_layout(&device);
         let render_pipeline_layout = PipelineFactory::create_render_pipeline_layout(
             &device,
             &[
                 &camera_bind_group_layout,
                 &point_light_bind_group_layout,
+                &shadow_texture_layout,
                 &diffuse_texture_layout,
             ],
         );
@@ -158,8 +162,9 @@ impl Renderer {
             0.5,
             camera,
         );
-
         let player_controller = PlayerController::default();
+        let light_ids: Vec<u32> = lights.iter().map(|light| light.id).collect();
+        let scene_shadow_baker = SceneShadowBaker::new(&light_ids, &device);
 
         // uniforms
         let mut camera_uniform = CameraUniform::new(player.camera.position);
@@ -200,6 +205,11 @@ impl Renderer {
             &device,
             &skybox_texture,
             &skybox_bind_group_layout,
+        );
+        let shadow_bind_group = ShadowMapUniform::create_shadow_texture_bind_group(
+            &device,
+            &scene_shadow_baker.shadow_map_texture,
+            &shadow_texture_layout,
         );
 
         // pipelines
@@ -251,12 +261,11 @@ impl Renderer {
             wgpu::CompareFunction::Always,
         );
 
-        let shadow_render_pipeline = PipelineFactory::create_render_pipeline(
+        let shadow_render_pipeline = PipelineFactory::create_fragmentless_render_pipeline(
             &device,
             &shadow_pipeline_layout,
-            config.format,
             Some(CubeTexture::DEPTH_FORMAT),
-            &[Vertex::desc()],
+            &[Vertex::desc(), RawInstance::desc()],
             wgpu::PrimitiveTopology::TriangleList,
             wgpu::ShaderModuleDescriptor {
                 label: Some("Shadow Mapping Shader"),
@@ -267,9 +276,6 @@ impl Renderer {
             wgpu::CompareFunction::Less,
         );
 
-        let light_ids: Vec<u32> = lights.iter().map(|light| light.id).collect();
-
-        let scene_shadow_baker = SceneShadowBaker::new(&light_ids, &device);
         Ok(Self {
             window,
             surface,
@@ -296,6 +302,7 @@ impl Renderer {
             debug_buffer,
             shadow_render_pipeline,
             shadow_bind_group_layout,
+            shadow_bind_group,
             scene_shadow_baker,
         })
     }
@@ -309,7 +316,7 @@ impl Renderer {
 
         // Shadow render pass
         for light in &self.lights {
-            self.scene_shadow_baker.get_light_shadow_map(
+            self.scene_shadow_baker.update_light_shadow_map(
                 light,
                 &self.device,
                 &self.queue,
@@ -359,6 +366,7 @@ impl Renderer {
             render_pass.set_pipeline(&self.render_pipeline);
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
             render_pass.set_bind_group(1, &self.point_light_bind_group, &[]);
+            render_pass.set_bind_group(2, &self.shadow_bind_group, &[]);
             for model in &self.models {
                 model.draw(&mut render_pass);
             }
