@@ -1,17 +1,19 @@
 use nalgebra::{Point3, Vector3};
 use pipeline_factory::PipelineFactory;
+use scene_shadow_baker::{SceneShadowBaker, ShadowUniform};
 use std::sync::Arc;
 use std::time::Duration;
 use wgpu::util::DeviceExt;
 
 use wgpu::{
-    BindGroup, Buffer, Device, DeviceDescriptor, Queue, RenderPipeline, Surface,
+    BindGroup, BindGroupLayout, Buffer, Device, DeviceDescriptor, Queue, RenderPipeline, Surface,
     SurfaceConfiguration,
 };
 use winit::window::Window;
 
 use crate::camera::Camera;
 use crate::camera::camera_uniform::CameraUniform;
+use crate::camera::light::Light;
 use crate::camera::light_uniform::LightUniformArray;
 use crate::game::collision_manager::CollisionManager;
 use crate::game::player::Player;
@@ -25,6 +27,7 @@ use crate::model::texture::TextureBuilder;
 use crate::model::vertex::{LineVertex, Vertex};
 
 mod pipeline_factory;
+mod scene_shadow_baker;
 
 pub struct Renderer {
     window: Arc<Window>,
@@ -33,6 +36,7 @@ pub struct Renderer {
     queue: Queue,
     config: SurfaceConfiguration,
     models: Vec<Model>,
+    lights: Vec<Light>,
     player: Player,
     is_surface_configured: bool,
     debug_lines_len: u32,
@@ -40,14 +44,17 @@ pub struct Renderer {
     map_file: String,
     depth_texture: DepthTexture,
     collision_manager: CollisionManager,
+    scene_shadow_baker: SceneShadowBaker,
     camera_uniform: CameraUniform,
     camera_buffer: Buffer,
     debug_buffer: Buffer,
     camera_bind_group: BindGroup,
     point_light_bind_group: BindGroup,
     skybox_bind_group: BindGroup,
+    shadow_bind_group_layout: BindGroupLayout,
     skybox_render_pipeline: RenderPipeline,
     debug_render_pipeline: RenderPipeline,
+    shadow_render_pipeline: RenderPipeline,
     render_pipeline: RenderPipeline,
 }
 
@@ -108,6 +115,7 @@ impl Renderer {
         let diffuse_texture_layout = TextureBuilder::create_bind_group_layout(&device);
         let point_light_bind_group_layout = LightUniformArray::create_bind_group_layout(&device);
         let skybox_bind_group_layout = CubeTextureBuilder::create_bind_group_layout(&device);
+        let shadow_bind_group_layout = ShadowUniform::create_bind_group_layout(&device);
         let render_pipeline_layout = PipelineFactory::create_render_pipeline_layout(
             &device,
             &[
@@ -120,6 +128,8 @@ impl Renderer {
             &device,
             &[&skybox_bind_group_layout, &camera_bind_group_layout],
         );
+        let shadow_pipeline_layout =
+            PipelineFactory::create_render_pipeline_layout(&device, &[&shadow_bind_group_layout]);
         let debug_pipeline_layout =
             PipelineFactory::create_render_pipeline_layout(&device, &[&camera_bind_group_layout]);
 
@@ -241,6 +251,25 @@ impl Renderer {
             wgpu::CompareFunction::Always,
         );
 
+        let shadow_render_pipeline = PipelineFactory::create_render_pipeline(
+            &device,
+            &shadow_pipeline_layout,
+            config.format,
+            Some(CubeTexture::DEPTH_FORMAT),
+            &[Vertex::desc()],
+            wgpu::PrimitiveTopology::TriangleList,
+            wgpu::ShaderModuleDescriptor {
+                label: Some("Shadow Mapping Shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shadow.wgsl").into()),
+            },
+            Some(wgpu::Face::Back),
+            true,
+            wgpu::CompareFunction::Less,
+        );
+
+        let light_ids: Vec<u32> = lights.iter().map(|light| light.id).collect();
+
+        let scene_shadow_baker = SceneShadowBaker::new(&light_ids, &device);
         Ok(Self {
             window,
             surface,
@@ -249,6 +278,7 @@ impl Renderer {
             config,
             is_surface_configured: true,
             models,
+            lights,
             player,
             collision_manager,
             map_file,
@@ -264,6 +294,9 @@ impl Renderer {
             debug_render_pipeline,
             debug_lines_len,
             debug_buffer,
+            shadow_render_pipeline,
+            shadow_bind_group_layout,
+            scene_shadow_baker,
         })
     }
 
@@ -272,6 +305,17 @@ impl Renderer {
 
         if !self.is_surface_configured {
             return Ok(());
+        }
+
+        for light in &self.lights {
+            self.scene_shadow_baker.get_light_shadow_map(
+                light,
+                &self.device,
+                &self.queue,
+                &self.models,
+                &self.shadow_render_pipeline,
+                &self.shadow_bind_group_layout,
+            );
         }
         let output = self.surface.get_current_texture()?;
         let view = output

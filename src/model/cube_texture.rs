@@ -1,6 +1,6 @@
 use image::RgbaImage;
 use rayon::prelude::*;
-use wgpu::{BindGroup, BindGroupLayout, Device, Extent3d, Queue};
+use wgpu::{BindGroup, BindGroupLayout, Device, Extent3d, Queue, TextureFormat, TextureView};
 
 pub struct CubeTextureBuilder;
 
@@ -58,6 +58,66 @@ impl CubeTextureBuilder {
 }
 
 impl CubeTexture {
+    pub const DEPTH_FORMAT: TextureFormat = TextureFormat::Depth32Float;
+    pub fn new_shadow_map(
+        device: &Device,
+        resolution: u32,
+        num_lights: u32,
+        label: Option<&str>,
+    ) -> Self {
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label,
+            size: Extent3d {
+                width: resolution,
+                height: resolution,
+                depth_or_array_layers: 6 * num_lights,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format: wgpu::TextureFormat::Depth32Float,
+            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::RENDER_ATTACHMENT,
+            view_formats: &[],
+        });
+        let view = texture.create_view(&wgpu::TextureViewDescriptor {
+            dimension: Some(wgpu::TextureViewDimension::CubeArray),
+            array_layer_count: Some(6 * num_lights),
+            ..Default::default()
+        });
+        let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
+            address_mode_u: wgpu::AddressMode::ClampToEdge,
+            address_mode_v: wgpu::AddressMode::ClampToEdge,
+            address_mode_w: wgpu::AddressMode::ClampToEdge,
+            compare: Some(wgpu::CompareFunction::Less),
+            mag_filter: wgpu::FilterMode::Linear,
+            min_filter: wgpu::FilterMode::Linear,
+            mipmap_filter: wgpu::FilterMode::Nearest,
+            ..Default::default()
+        });
+
+        Self {
+            texture,
+            view,
+            sampler,
+        }
+    }
+
+    pub fn create_view_from_face(
+        &self,
+        light_index: u32,
+        face_index: u32,
+        label: Option<&str>,
+    ) -> TextureView {
+        self.texture.create_view(&wgpu::TextureViewDescriptor {
+            label,
+            dimension: Some(wgpu::TextureViewDimension::D2),
+            base_array_layer: 6 * light_index + face_index,
+            array_layer_count: Some(1),
+            mip_level_count: Some(1),
+            ..Default::default()
+        })
+    }
+
     pub fn from_files(
         files: &[String],
         device: &Device,

@@ -101,8 +101,10 @@ impl MapLoader {
         let lights: Vec<Light> = self
             .lights
             .iter()
-            .map(|light| -> Light {
+            .enumerate()
+            .map(|(i, light)| -> Light {
                 Light {
+                    id: i as u32,
                     position: Point3::new(light.position[0], light.position[1], light.position[2]),
                     color: light.color,
                     intensity: light.intensity,
@@ -219,6 +221,7 @@ impl MapLoader {
                 Model {
                     meshes,
                     materials: materials.clone(),
+                    instances,
                     instance_buffer,
                     num_instances,
                 }
