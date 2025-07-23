@@ -10,6 +10,6 @@ cargo run
 
 ## Things to do
  - Add multiplayer
- - Multiple point light shadow mapping
+ - Fix weird light fragments near walls from shadow mapping
+    - Also stop hardcoding far plane
  - HUD
- - Improved map loader
