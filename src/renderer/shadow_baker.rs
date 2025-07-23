@@ -9,7 +9,7 @@ use crate::{
     model::{Model, cube_texture::CubeTexture},
 };
 
-pub struct SceneShadowBaker {
+pub struct ShadowBaker {
     pub shadow_map_texture: CubeTexture,
     cached_shadow_maps: HashMap<u32, CachedShadowMap>,
     scene_version: u64,
@@ -23,7 +23,7 @@ pub struct CachedShadowMap {
     pub init: bool,
 }
 
-impl SceneShadowBaker {
+impl ShadowBaker {
     const RESOLUTION: u32 = 1024;
     const INIT_VERSION: u64 = 0;
     pub fn new(light_ids: &[u32], device: &Device) -> Self {

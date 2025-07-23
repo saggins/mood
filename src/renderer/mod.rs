@@ -1,6 +1,6 @@
 use nalgebra::{Point3, Vector3};
 use pipeline_factory::PipelineFactory;
-use scene_shadow_baker::SceneShadowBaker;
+use shadow_baker::ShadowBaker;
 use std::sync::Arc;
 use std::time::Duration;
 use wgpu::util::DeviceExt;
@@ -28,7 +28,7 @@ use crate::model::texture::TextureBuilder;
 use crate::model::vertex::{LineVertex, Vertex};
 
 mod pipeline_factory;
-mod scene_shadow_baker;
+mod shadow_baker;
 
 pub struct Renderer {
     window: Arc<Window>,
@@ -45,7 +45,7 @@ pub struct Renderer {
     map_file: String,
     depth_texture: DepthTexture,
     collision_manager: CollisionManager,
-    scene_shadow_baker: SceneShadowBaker,
+    shadow_baker: ShadowBaker,
     camera_uniform: CameraUniform,
     camera_buffer: Buffer,
     debug_buffer: Buffer,
@@ -164,7 +164,7 @@ impl Renderer {
         );
         let player_controller = PlayerController::default();
         let light_ids: Vec<u32> = lights.iter().map(|light| light.id).collect();
-        let scene_shadow_baker = SceneShadowBaker::new(&light_ids, &device);
+        let shadow_baker = ShadowBaker::new(&light_ids, &device);
 
         // uniforms
         let mut camera_uniform = CameraUniform::new(player.camera.position);
@@ -208,7 +208,7 @@ impl Renderer {
         );
         let shadow_bind_group = ShadowMapUniform::create_shadow_texture_bind_group(
             &device,
-            &scene_shadow_baker.shadow_map_texture,
+            &shadow_baker.shadow_map_texture,
             &shadow_texture_layout,
         );
 
@@ -271,7 +271,7 @@ impl Renderer {
                 label: Some("Shadow Mapping Shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shadow.wgsl").into()),
             },
-            None,
+            Some(wgpu::Face::Back),
             true,
             wgpu::CompareFunction::LessEqual,
         );
@@ -303,7 +303,7 @@ impl Renderer {
             shadow_render_pipeline,
             shadow_bind_group_layout,
             shadow_bind_group,
-            scene_shadow_baker,
+            shadow_baker,
         })
     }
 
@@ -316,7 +316,7 @@ impl Renderer {
 
         // Shadow render pass
         for light in &self.lights {
-            self.scene_shadow_baker.update_light_shadow_map(
+            self.shadow_baker.update_light_shadow_map(
                 light,
                 &self.device,
                 &self.queue,
@@ -467,6 +467,10 @@ impl Renderer {
         self.debug_buffer = debug_buffer;
         self.debug_lines_len = debug_lines_len;
         self.collision_manager = collision_manager;
+        self.shadow_baker.update_scene_version();
+        for light in &self.lights {
+            self.shadow_baker.update_light_version_from_id(light.id);
+        }
     }
 
     pub fn get_mut_player_controller(&mut self) -> &mut PlayerController {

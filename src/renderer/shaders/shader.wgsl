@@ -134,15 +134,17 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             let spec_angle = max(dot(tangent_normal, half_dir), 0.0);
             specular = pow(spec_angle, 16.0);
         }
-
         let world_light_dir = (in.world_position.xyz - point_lights.lights[i].position);
         let shadow_dist = length(world_light_dir) / 200.0;
+        let normal_bias = 0.00001; // adjust to taste
+        let angle = dot(normalize(in.N), normalize(world_light_dir));
+        let bias = clamp(normal_bias * (1.0 - angle), 0.00005, 0.005);
         let shadow = textureSampleCompare(
             shadow_maps,
             shadow_sampler,
             normalize(world_light_dir),
             i,
-            shadow_dist - 0.00005
+            shadow_dist - bias
         );
         
         color += light_color * (specular + diffuse) * attenuation * light_intensity * shadow;
