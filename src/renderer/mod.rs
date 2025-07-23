@@ -261,7 +261,7 @@ impl Renderer {
             wgpu::CompareFunction::Always,
         );
 
-        let shadow_render_pipeline = PipelineFactory::create_fragmentless_render_pipeline(
+        let shadow_render_pipeline = PipelineFactory::create_shadow_render_pipeline(
             &device,
             &shadow_pipeline_layout,
             Some(CubeTexture::DEPTH_FORMAT),
@@ -271,9 +271,9 @@ impl Renderer {
                 label: Some("Shadow Mapping Shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shadow.wgsl").into()),
             },
-            Some(wgpu::Face::Back),
+            None,
             true,
-            wgpu::CompareFunction::Less,
+            wgpu::CompareFunction::LessEqual,
         );
 
         Ok(Self {

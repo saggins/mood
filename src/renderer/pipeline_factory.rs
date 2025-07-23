@@ -14,7 +14,7 @@ impl PipelineFactory {
         })
     }
 
-    pub fn create_fragmentless_render_pipeline(
+    pub fn create_shadow_render_pipeline(
         device: &wgpu::Device,
         layout: &wgpu::PipelineLayout,
         depth_format: Option<wgpu::TextureFormat>,
@@ -36,7 +36,13 @@ impl PipelineFactory {
                 buffers: vertex_layouts,
                 compilation_options: Default::default(),
             },
-            fragment: None,
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fs_main"),
+                targets: &[],
+                compilation_options: Default::default(),
+            }),
+
             primitive: wgpu::PrimitiveState {
                 topology,
                 strip_index_format: None,

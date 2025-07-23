@@ -88,7 +88,7 @@ impl CubeTexture {
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
-            compare: Some(wgpu::CompareFunction::Less),
+            compare: Some(wgpu::CompareFunction::LessEqual),
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::FilterMode::Nearest,
@@ -114,6 +114,7 @@ impl CubeTexture {
             base_array_layer: 6 * light_index + face_index,
             array_layer_count: Some(1),
             mip_level_count: Some(1),
+            format: Some(wgpu::TextureFormat::Depth32Float),
             ..Default::default()
         })
     }

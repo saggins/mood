@@ -15,16 +15,16 @@ impl ShadowMapUniform {
     pub fn get_uniform_map_for_face(light_pos: Point3<f32>, face_index: u32) -> Self {
         let eye = light_pos;
         let (target, up): (Point3<f32>, Vector3<f32>) = match face_index {
-            0 => (eye + Vector3::x(), Vector3::y()),  // +X
-            1 => (eye - Vector3::x(), Vector3::y()),  // -X
+            0 => (eye + Vector3::x(), -Vector3::y()), // +X
+            1 => (eye - Vector3::x(), -Vector3::y()), // -X
             2 => (eye + Vector3::y(), Vector3::z()),  // +Y
             3 => (eye - Vector3::y(), -Vector3::z()), // -Y
-            4 => (eye + Vector3::z(), Vector3::y()),  // +Z
-            5 => (eye - Vector3::z(), Vector3::y()),  // -Z
+            4 => (eye + Vector3::z(), -Vector3::y()), // +Z
+            5 => (eye - Vector3::z(), -Vector3::y()), // -Z
             _ => panic!("Invalid cube face index"),
         };
 
-        let proj = Perspective3::new(1.0, std::f32::consts::FRAC_2_PI, 0.01, 200.0);
+        let proj = Perspective3::new(1.0, std::f32::consts::FRAC_PI_2, 0.1, 200.0);
 
         let view = Matrix4::look_at_rh(&eye, &target, &up);
 
@@ -39,7 +39,7 @@ impl ShadowMapUniform {
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
-                visibility: wgpu::ShaderStages::VERTEX,
+                visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
                     ty: wgpu::BufferBindingType::Uniform,
                     has_dynamic_offset: false,

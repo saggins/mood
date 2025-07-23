@@ -124,8 +124,8 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
         let light_color = point_lights.lights[i].color;
         let light_intensity = point_lights.lights[i].intensity;
         let light_dir = normalize(light_pos - in.tangent_position);
-        let dist = distance(light_pos, in.tangent_position);
-        let attenuation = 1.0 / (dist * dist);
+        let light_dist = distance(light_pos, in.tangent_position);
+        let attenuation = 1.0 / (light_dist * light_dist);
         let diffuse = max(dot(tangent_normal, light_dir), 0.0);
         var specular = 0.0;
         
@@ -135,14 +135,14 @@ fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
             specular = pow(spec_angle, 16.0);
         }
 
-        let world_light_dir = in.world_position.xyz - point_lights.lights[i].position;
-        let shadow_dist = length(world_light_dir);
+        let world_light_dir = (in.world_position.xyz - point_lights.lights[i].position);
+        let shadow_dist = length(world_light_dir) / 200.0;
         let shadow = textureSampleCompare(
             shadow_maps,
             shadow_sampler,
             normalize(world_light_dir),
             i,
-            shadow_dist
+            shadow_dist - 0.00005
         );
         
         color += light_color * (specular + diffuse) * attenuation * light_intensity * shadow;

@@ -16,7 +16,11 @@ struct VertexInput {
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
-    @location(0) world_position: vec3<f32>,
+    @location(0) world_pos: vec3<f32>
+}
+
+struct FragmentOutput {
+    @builtin(frag_depth) depth: f32
 }
 
 struct InstanceInput {
@@ -41,8 +45,18 @@ fn vs_main(
         instance.model_matrix_3
     );
     var out: VertexOutput;
-    let world_position = model_mat * vec4<f32>(in.position, 1.0);
-    out.clip_position = light.view_proj * world_position;
-    out.world_position = world_position.xyz;
+    let world_pos = model_mat * vec4<f32>(in.position, 1.0);
+    out.world_pos = world_pos.xyz;
+    out.clip_position = light.view_proj * world_pos;
+    return out;
+}
+
+@fragment
+fn fs_main(
+    in: VertexOutput
+) -> FragmentOutput {
+    let light_distance = distance(in.world_pos, light.position);
+    var out: FragmentOutput;
+    out.depth = light_distance / 200.0;
     return out;
 }
