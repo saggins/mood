@@ -64,6 +64,8 @@ impl Renderer {
     const MOVE_SPEED: f32 = 2.0;
     const SENSITIVITY: f32 = 0.3;
     const JUMP_STRENGTH: f32 = 1.6;
+    const FAR_PLANE: f32 = 200.0;
+    const NEAR_PLANE: f32 = 0.01;
     pub async fn new(window: Arc<Window>, map_file: String) -> Result<Self, String> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
@@ -151,8 +153,8 @@ impl Renderer {
             up: Vector3::new(0.0, 1.0, 0.0),
             aspect: size.width as f32 / size.height as f32,
             fovy: 1.0,
-            near: 0.01,
-            far: 200.0,
+            near: Self::NEAR_PLANE,
+            far: Self::FAR_PLANE,
         };
         let player = Player::new(
             Self::SENSITIVITY,
@@ -273,7 +275,7 @@ impl Renderer {
             },
             Some(wgpu::Face::Back),
             true,
-            wgpu::CompareFunction::LessEqual,
+            wgpu::CompareFunction::Less,
         );
 
         Ok(Self {

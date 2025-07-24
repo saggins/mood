@@ -1,7 +1,7 @@
 #![allow(dead_code)]
 use std::{collections::HashMap, sync::Arc};
 
-use model_instance::{Instance, RawInstance};
+use model_instance::RawInstance;
 use wgpu::{Buffer, RenderPass};
 
 pub mod cube_texture;
