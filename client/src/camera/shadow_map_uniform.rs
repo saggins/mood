@@ -1,7 +1,7 @@
 use nalgebra::{Matrix4, Perspective3, Point3, Vector3};
 use wgpu::{BindGroup, BindGroupLayout, Device};
 
-use crate::model::cube_texture::CubeTexture;
+use crate::{model::cube_texture::CubeTexture, renderer::Renderer};
 
 #[repr(C)]
 #[derive(Debug, Copy, Clone, bytemuck::Pod, bytemuck::Zeroable)]
@@ -24,7 +24,12 @@ impl ShadowMapUniform {
             _ => panic!("Invalid cube face index"),
         };
 
-        let proj = Perspective3::new(1.0, std::f32::consts::FRAC_PI_2, 0.1, 200.0);
+        let proj = Perspective3::new(
+            1.0,
+            std::f32::consts::FRAC_PI_2,
+            Renderer::NEAR_PLANE,
+            Renderer::FAR_PLANE,
+        );
 
         let view = Matrix4::look_at_rh(&eye, &target, &up);
 

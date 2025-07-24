@@ -1,6 +1,6 @@
 [workspace]
 resolver = "3"
-members = ["client"]
+members = ["client", "server"]
 default-members = ["client"]
 
 [workspace.package]

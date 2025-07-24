@@ -64,8 +64,8 @@ impl Renderer {
     const MOVE_SPEED: f32 = 2.0;
     const SENSITIVITY: f32 = 0.3;
     const JUMP_STRENGTH: f32 = 1.6;
-    const FAR_PLANE: f32 = 200.0;
-    const NEAR_PLANE: f32 = 0.01;
+    pub const FAR_PLANE: f32 = 200.0;
+    pub const NEAR_PLANE: f32 = 0.01;
     pub async fn new(window: Arc<Window>, map_file: String) -> Result<Self, String> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
