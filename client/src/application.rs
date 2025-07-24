@@ -27,7 +27,7 @@ impl ApplicationHandler for AppState {
 
         self.renderer = match pollster::block_on(Renderer::new(
             window.clone(),
-            String::from("src/model/maps/map_1.json"),
+            String::from("client/src/model/maps/map_1.json"),
         )) {
             Ok(r) => Some(r),
             Err(e) => {

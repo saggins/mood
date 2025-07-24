@@ -1,11 +1,11 @@
 {
     "skybox": [
-        "textures/map1/skybox/right.jpg",
-        "textures/map1/skybox/left.jpg",
-        "textures/map1/skybox/top.jpg",
-        "textures/map1/skybox/bottom.jpg",
-        "textures/map1/skybox/front.jpg",
-        "textures/map1/skybox/back.jpg"
+        "client/textures/map1/skybox/right.jpg",
+        "client/textures/map1/skybox/left.jpg",
+        "client/textures/map1/skybox/top.jpg",
+        "client/textures/map1/skybox/bottom.jpg",
+        "client/textures/map1/skybox/front.jpg",
+        "client/textures/map1/skybox/back.jpg"
     ],
     "lights": [
         {
@@ -51,13 +51,13 @@
     "materials": [
         {
             "name": "sandy_footprints",
-            "texture_map": "textures/map1/sand.png",
-            "normal_map": "textures/map1/sand_normal.png"
+            "texture_map": "client/textures/map1/sand.png",
+            "normal_map": "client/textures/map1/sand_normal.png"
         },
         {
             "name": "sandstone_bricks",
-            "texture_map": "textures/map1/bricks.png",
-            "normal_map": "textures/map1/bricks_normal.png"
+            "texture_map": "client/textures/map1/bricks.png",
+            "normal_map": "client/textures/map1/bricks_normal.png"
         }
     ],
     "models": [
