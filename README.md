@@ -3,13 +3,16 @@ A first person shooter game inspired by DOOM but actually having better graphics
 
 This project was made using wgpu and wgsl.
 
-## Build
+## Run client
 ```sh
-cargo run
+cargo run -p client
+```
+
+## Run server
+```sh
+cargo run -p server
 ```
 
 ## Things to do
  - Add multiplayer
- - Fix weird light fragments near walls from shadow mapping
-    - Also stop hardcoding far plane
  - HUD
