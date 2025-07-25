@@ -1,12 +1,15 @@
 use std::{
+    cell::RefCell,
     error::Error,
     io::{Cursor, Read},
+    rc::Rc,
 };
 
+use crate::game::player_state::PlayerState;
+
 pub struct Command {
-    pub player_id: u8,
     pub command_type: CommandType,
-    pub time: u64,
+    pub time: u128,
 }
 
 #[derive(Debug)]
@@ -17,15 +20,11 @@ pub enum CommandType {
         position: [f32; 3],
         velocity: [f32; 3],
     },
-    PlayerChatMessage(String),
-    PlayerFireBullet {
-        start: [f32; 3],
-        direction: [f32; 3],
-    },
+    Data(Vec<PlayerState>),
 }
 
 impl Command {
-    pub fn serialize(&self) -> &[u8] {
+    pub fn serialize(&self) -> Vec<u8> {
         todo!()
     }
 
@@ -37,7 +36,6 @@ impl Command {
 
         let mut cursor = Cursor::new(data);
 
-        let player_id = Self::read_u8(&mut cursor)?;
         let command_type = match Self::read_u8(&mut cursor)? {
             0 => CommandType::PlayerJoin,
             1 => CommandType::PlayerLeave,
@@ -59,13 +57,9 @@ impl Command {
             }
         };
 
-        let time = Self::read_u64_le(&mut cursor)?;
+        let time = Self::read_u128_le(&mut cursor)?;
 
-        Ok(Self {
-            player_id,
-            command_type,
-            time,
-        })
+        Ok(Self { command_type, time })
     }
 
     fn read_u8(cursor: &mut Cursor<&[u8]>) -> Result<u8, Box<dyn Error>> {
@@ -78,7 +72,7 @@ impl Command {
         todo!()
     }
 
-    fn read_u64_le(cursor: &mut Cursor<&[u8]>) -> Result<u64, Box<dyn Error>> {
+    fn read_u128_le(cursor: &mut Cursor<&[u8]>) -> Result<u128, Box<dyn Error>> {
         todo!()
     }
 }
