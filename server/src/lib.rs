@@ -5,18 +5,19 @@ use std::{
     time::{Duration, Instant},
 };
 
-mod packet;
+use command::{Command, CommandType};
+
+mod command;
+mod game;
 
 pub struct Server {
     socket: UdpSocket,
-    input_commands: HashMap<SocketAddr, VecDeque<()>>, // TODO
-    player_state: HashMap<SocketAddr, ()>,             // TODO
+    input_commands: HashMap<SocketAddr, VecDeque<Command>>,
+    player_states: HashMap<SocketAddr, ()>, // TODO
     last_tick: Instant,
     tick_rate: Duration,
     ticks_elapsed: u32,
 }
-
-struct InputCommand {}
 
 impl Server {
     pub fn new(server_addr: Ipv4Addr, port: u16, tick_rate_in_millis: u64) -> io::Result<Self> {
@@ -27,7 +28,7 @@ impl Server {
         Ok(Self {
             socket,
             input_commands: HashMap::new(),
-            player_state: HashMap::new(),
+            player_states: HashMap::new(),
             last_tick: Instant::now(),
             tick_rate: Duration::from_millis(tick_rate_in_millis),
             ticks_elapsed: 0,
@@ -49,14 +50,32 @@ impl Server {
         }
     }
 
-    fn poll_connections(&self, buffer: &mut [u8]) -> io::Result<()> {
+    fn poll_connections(&mut self, buffer: &mut [u8]) -> io::Result<()> {
         loop {
             match self.socket.recv_from(buffer) {
                 Ok((number_of_bytes, src_addr)) => {
+                    let Ok(command) = Command::deserialize(&buffer[..number_of_bytes]) else {
+                        println!("Invalid data recieved from: {src_addr}");
+                        break;
+                    };
+
+                    match command.command_type {
+                        CommandType::PlayerJoin => {
+                            println!("{src_addr} joined the lobby");
+                            self.input_commands.insert(src_addr, VecDeque::new());
+                            self.player_states.insert(src_addr, ());
+                        }
+                        CommandType::PlayerLeave => {
+                            println!("{src_addr} left the lobby");
+                            self.input_commands.remove(&src_addr);
+                            self.player_states.remove(&src_addr);
+                        }
+                        _ => {}
+                    }
+
                     println!(
-                        "recieved {:?} from {:?}",
-                        &buffer[..number_of_bytes],
-                        src_addr
+                        "recieved command: {:?} from player: {}",
+                        command.command_type, command.player_id
                     );
                 }
                 Err(ref e) if e.kind() == io::ErrorKind::WouldBlock => break,
@@ -68,5 +87,5 @@ impl Server {
         Ok(())
     }
 
-    fn process_game_tick(&self) {}
+    fn process_game_tick(&mut self) {}
 }
