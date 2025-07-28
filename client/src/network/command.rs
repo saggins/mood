@@ -2,9 +2,10 @@ use std::error::Error;
 
 use serde::{Deserialize, Serialize};
 
-use crate::game::player_state::PlayerState;
 use bincode::config as bconfig;
 use bincode::{config::Configuration, serde as bserde};
+
+use super::player_state::PlayerState;
 
 #[derive(Serialize, Deserialize)]
 pub struct Command {

@@ -2,6 +2,7 @@ mod application;
 mod camera;
 mod game;
 mod model;
+mod network;
 mod renderer;
 
 use application::AppState;

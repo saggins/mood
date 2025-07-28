@@ -6,6 +6,7 @@ authors.workspace = true
 description.workspace = true
 
 [dependencies]
+bincode = { version = "2.0.1", features = [ "serde" ] }
 bytemuck = { version = "1.23.1", features = [ "derive" ] }
 env_logger = "0.11.8"
 image = "0.25.6"
