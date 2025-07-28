@@ -7,6 +7,6 @@ fn main() -> io::Result<()> {
     let port = 8003;
     println!("Starting server at {ip}:{port}");
     let mut server = Server::new(ip, port, 60)?;
-    server.run()?;
+    server.run();
     Ok(())
 }

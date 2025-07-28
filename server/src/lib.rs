@@ -111,10 +111,14 @@ impl Server {
                 .as_millis(),
         }
         .serialize();
-        for src_addr in self.player_state.keys() {
-            if let Ok(num_bytes) = self.socket.send_to(&game_state, src_addr) {
-                info!("sent {num_bytes} bytes to {src_addr}");
+        if let Ok(serialized_state) = game_state {
+            for src_addr in self.player_state.keys() {
+                if let Ok(num_bytes) = self.socket.send_to(&serialized_state, src_addr) {
+                    info!("sent {num_bytes} bytes to {src_addr}");
+                }
             }
+        } else {
+            error!("failed to serialize player_state");
         }
     }
 }
