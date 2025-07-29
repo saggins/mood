@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 use crate::game::player_state::PlayerState;
 use bincode::config as bconfig;
@@ -20,7 +21,7 @@ pub enum CommandType {
         position: [f32; 3],
         velocity: [f32; 3],
     },
-    Data(Vec<PlayerState>),
+    Data((Uuid, Vec<PlayerState>)),
 }
 
 impl Command {

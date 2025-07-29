@@ -102,23 +102,25 @@ impl Server {
     }
 
     fn emit_game_state(&self) {
-        let player_states = self.player_state.values().cloned().collect();
-        let game_state = Command {
-            command_type: CommandType::Data(player_states),
-            time: SystemTime::now()
-                .duration_since(UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_millis(),
-        }
-        .serialize();
-        if let Ok(serialized_state) = game_state {
-            for src_addr in self.player_state.keys() {
+        let collected_states: Vec<PlayerState> = self.player_state.values().cloned().collect();
+        self.player_state.iter().for_each(|(src_addr, state)| {
+            let game_state = Command {
+                command_type: CommandType::Data((state.player_id, collected_states.clone())),
+                time: SystemTime::now()
+                    .duration_since(UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_millis(),
+            }
+            .serialize();
+            if let Ok(serialized_state) = game_state {
                 if let Ok(num_bytes) = self.socket.send_to(&serialized_state, src_addr) {
                     info!("sent {num_bytes} bytes to {src_addr}");
+                } else {
+                    error!("failed to send data to {src_addr}");
                 }
+            } else {
+                error!("failed to serialize data to {src_addr}");
             }
-        } else {
-            error!("failed to serialize player_state");
-        }
+        });
     }
 }
