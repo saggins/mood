@@ -13,6 +13,3 @@ cargo run -p client
 cargo run -p server
 ```
 
-## Things to do
- - Add multiplayer
- - HUD

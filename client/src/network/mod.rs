@@ -1,12 +1,12 @@
 use std::{
     collections::HashMap,
-    error::Error,
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket},
     time::{SystemTime, UNIX_EPOCH},
 };
 
-use command::Command;
+use command::{Command, CommandType};
+use log::{error, info};
 use player_state::PlayerState;
 use uuid::Uuid;
 
@@ -15,26 +15,39 @@ pub mod player_state;
 
 pub struct Network {
     socket: UdpSocket,
-    player_state: HashMap<Uuid, PlayerState>,
+    player_states: HashMap<Uuid, PlayerState>,
 }
 
 impl Network {
     pub fn new(ip_addr: Ipv4Addr, port: u16) -> io::Result<Self> {
         let addr = SocketAddr::new(IpAddr::V4(ip_addr), port);
-        let socket = UdpSocket::bind(addr)?;
+        let socket = UdpSocket::bind("0.0.0.0:0")?;
+        socket.connect(addr)?;
         socket.set_nonblocking(true)?;
 
         Ok(Self {
             socket,
-            player_state: HashMap::new(),
+            player_states: HashMap::new(),
         })
     }
 
-    pub fn poll(&self) -> Option<()> {
-        todo!();
+    pub fn poll(&mut self) {
+        let mut buffer = [0; 1024];
+        match self.socket.recv_from(&mut buffer) {
+            Ok((number_of_bytes, src_addr)) => {
+                if let Ok(command) = Command::deserialize(&buffer[..number_of_bytes]) {
+                    info!("recieved {:?} from {}", command.command_type, src_addr);
+                    self.handle_command(command.command_type);
+                }
+            }
+            Err(e) if e.kind() != io::ErrorKind::WouldBlock => {
+                error!("{e}");
+            }
+            _ => {}
+        }
     }
 
-    pub fn connect(&self) -> io::Result<()> {
+    pub fn send_player_join(&self) -> io::Result<()> {
         let connect_command = Command {
             command_type: command::CommandType::PlayerJoin,
             time: SystemTime::now()
@@ -46,11 +59,31 @@ impl Network {
         Ok(())
     }
 
-    pub fn disconnect(&self) -> Result<(), Box<dyn Error>> {
-        todo!();
+    pub fn send_player_leave(&self) -> io::Result<()> {
+        let disconnect_command = Command {
+            command_type: command::CommandType::PlayerLeave,
+            time: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis(),
+        };
+        self.socket.send(&disconnect_command.serialize().unwrap())?;
+        Ok(())
     }
 
-    pub fn send(&self) {
-        todo!();
+    pub fn send_player_move(&self, position: [f32; 3], velocity: [f32; 3]) -> io::Result<()> {
+        let movement_command = Command {
+            command_type: command::CommandType::PlayerMove { position, velocity },
+            time: SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis(),
+        };
+        self.socket.send(&movement_command.serialize().unwrap())?;
+        Ok(())
+    }
+
+    fn handle_command(&mut self, command: CommandType) {
+        if let CommandType::Data((uuid, player_states)) = command {}
     }
 }

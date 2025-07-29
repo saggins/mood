@@ -10,8 +10,8 @@ use super::{
 };
 
 pub struct Player {
-    position: Point3<f32>,
-    velocity: Vector3<f32>,
+    pub position: Point3<f32>,
+    pub velocity: Vector3<f32>,
     sensitivity: f32,
     speed: f32,
     jump_strength: f32,

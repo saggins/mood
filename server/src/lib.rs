@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, VecDeque},
     io,
     net::{IpAddr, Ipv4Addr, SocketAddr, UdpSocket},
+    rc::Rc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
@@ -15,10 +16,10 @@ mod game;
 pub struct Server {
     socket: UdpSocket,
     input_commands: VecDeque<InputCommand>,
-    player_state: HashMap<SocketAddr, PlayerState>,
+    player_states: HashMap<SocketAddr, PlayerState>,
     last_tick: Instant,
     tick_rate: Duration,
-    ticks_elapsed: u32,
+    ticks_elapsed: u64,
 }
 
 struct InputCommand {
@@ -35,7 +36,7 @@ impl Server {
         Ok(Self {
             socket,
             input_commands: VecDeque::new(),
-            player_state: HashMap::new(),
+            player_states: HashMap::new(),
             last_tick: Instant::now(),
             tick_rate: Duration::from_millis(tick_rate_in_millis),
             ticks_elapsed: 0,
@@ -66,6 +67,8 @@ impl Server {
                     info!("{} sent {:?}", src_addr, command.command_type);
                     self.input_commands
                         .push_back(InputCommand { command, src_addr });
+                } else {
+                    error!("Invalid command sent!");
                 }
             }
             Err(e) if e.kind() != io::ErrorKind::WouldBlock => {
@@ -86,13 +89,13 @@ impl Server {
 
             match command.command_type {
                 CommandType::PlayerJoin => {
-                    self.player_state.entry(src_addr).or_default();
+                    self.player_states.entry(src_addr).or_default();
                 }
                 CommandType::PlayerLeave => {
-                    self.player_state.remove(&src_addr);
+                    self.player_states.remove(&src_addr);
                 }
                 CommandType::PlayerMove { position, velocity } => {
-                    if let Some(player) = self.player_state.get_mut(&src_addr) {
+                    if let Some(player) = self.player_states.get_mut(&src_addr) {
                         player.update(position, velocity);
                     }
                 }
@@ -102,8 +105,14 @@ impl Server {
     }
 
     fn emit_game_state(&self) {
-        let collected_states: Vec<PlayerState> = self.player_state.values().cloned().collect();
-        self.player_state.iter().for_each(|(src_addr, state)| {
+        let collected_states: Rc<[PlayerState]> = Rc::from(
+            self.player_states
+                .values()
+                .cloned()
+                .collect::<Vec<_>>()
+                .into_boxed_slice(),
+        );
+        self.player_states.iter().for_each(|(src_addr, state)| {
             let game_state = Command {
                 command_type: CommandType::Data((state.player_id, collected_states.clone())),
                 time: SystemTime::now()
@@ -113,14 +122,13 @@ impl Server {
             }
             .serialize();
             if let Ok(serialized_state) = game_state {
-                if let Ok(num_bytes) = self.socket.send_to(&serialized_state, src_addr) {
-                    info!("sent {num_bytes} bytes to {src_addr}");
-                } else {
+                let Ok(_) = self.socket.send_to(&serialized_state, src_addr) else {
                     error!("failed to send data to {src_addr}");
-                }
-            } else {
-                error!("failed to serialize data to {src_addr}");
+                    return;
+                };
             }
         });
     }
+
+    pub fn cull_dead_connections(&mut self) {}
 }

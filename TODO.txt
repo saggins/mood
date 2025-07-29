@@ -1,3 +1,5 @@
  - multiplayer / server
+  - Add connection culling on server side
+  - Render other players on client side
  - gun + projectiles
- - fix hardcoded shadow map far plane
+ - *** fix hardcoded shadow map far plane ***

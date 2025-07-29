@@ -479,6 +479,10 @@ impl Renderer {
         &mut self.player_controller
     }
 
+    pub fn get_player(&self) -> &Player {
+        &self.player
+    }
+
     pub fn get_window(&self) -> &Arc<Window> {
         &self.window
     }

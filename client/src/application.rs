@@ -1,5 +1,5 @@
 use log::error;
-use std::{sync::Arc, time::Instant};
+use std::{net::Ipv4Addr, sync::Arc, time::Instant};
 
 use winit::{
     application::ApplicationHandler,
@@ -9,12 +9,22 @@ use winit::{
     window::WindowAttributes,
 };
 
-use crate::renderer::Renderer;
+use crate::{network::Network, renderer::Renderer};
 
 #[derive(Default)]
 pub struct AppState {
     renderer: Option<Renderer>,
     prev_frame_time: Option<Instant>,
+    network_handler: Option<Network>,
+}
+
+impl AppState {
+    fn cleanup(&self, event_loop: &ActiveEventLoop) {
+        if let Some(ref network_handler) = self.network_handler {
+            network_handler.send_player_leave().unwrap();
+        };
+        event_loop.exit();
+    }
 }
 
 impl ApplicationHandler for AppState {
@@ -35,6 +45,16 @@ impl ApplicationHandler for AppState {
                 std::process::exit(1);
             }
         };
+        self.network_handler = match Network::new(Ipv4Addr::new(127, 0, 0, 1), 8003) {
+            Ok(nh) => Some(nh),
+            Err(_) => {
+                error!("A network setup error occurred!");
+                None
+            }
+        };
+        if let Some(ref network_handler) = self.network_handler {
+            network_handler.send_player_join().unwrap();
+        }
         self.prev_frame_time = Some(Instant::now());
         window.request_redraw();
     }
@@ -48,10 +68,21 @@ impl ApplicationHandler for AppState {
         let Some(renderer) = &mut self.renderer else {
             return;
         };
+
+        //send movement data
+        if let Some(ref mut network_handler) = self.network_handler {
+            network_handler.poll();
+            let player = renderer.get_player();
+            if network_handler
+                .send_player_move(player.position.into(), player.velocity.into())
+                .is_err()
+            {
+                error!("Server-Client desync!");
+            };
+        }
         match event {
             WindowEvent::CloseRequested => {
-                println!("The close button was pressed; stopping");
-                event_loop.exit();
+                self.cleanup(event_loop);
             }
             WindowEvent::RedrawRequested => {
                 renderer.update(self.prev_frame_time.unwrap_or_else(Instant::now).elapsed());
@@ -63,7 +94,7 @@ impl ApplicationHandler for AppState {
                         renderer.resize(size.width, size.height);
                     }
                     Err(e) => {
-                        log::error!("Unable to render {e}");
+                        error!("Unable to render {e}");
                     }
                 }
             }
@@ -80,6 +111,8 @@ impl ApplicationHandler for AppState {
                 if code == KeyCode::KeyB && state.is_pressed() {
                     renderer.rerender();
                     renderer.get_window().as_ref().request_redraw();
+                } else if code == KeyCode::Escape && state.is_pressed() {
+                    self.cleanup(event_loop);
                 } else if renderer
                     .get_mut_player_controller()
                     .handle_key_held(code, state, event_loop)

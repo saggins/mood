@@ -19,10 +19,6 @@ impl PlayerController {
         event_loop: &ActiveEventLoop,
     ) -> bool {
         match key {
-            KeyCode::Escape => {
-                event_loop.exit();
-                false
-            }
             KeyCode::KeyW => {
                 self.is_w_pressed = state.is_pressed();
                 true
