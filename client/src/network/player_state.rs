@@ -6,15 +6,15 @@ use uuid::Uuid;
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct PlayerState {
     pub player_id: Uuid,
-    position: [f32; 3],
-    velocity: [f32; 3],
-    health: u8,
+    pub position: [f32; 3],
+    pub velocity: [f32; 3],
+    pub health: u8,
 }
 
 #[derive(Debug, Clone, Copy)]
 pub struct TimedPlayerState {
-    player_state: PlayerState,
-    time: Instant,
+    pub player_state: PlayerState,
+    pub time: Instant,
 }
 
 impl TimedPlayerState {

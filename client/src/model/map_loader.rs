@@ -366,7 +366,7 @@ impl MapLoader {
             vertex_buffer,
             index_buffer,
             num_elements: num_indices,
-            material: String::from(material),
+            material: Some(String::from(material)),
         }
     }
 }

@@ -7,7 +7,7 @@ use std::{
 
 use command::{Command, CommandType};
 use log::{error, info};
-use player_state::{PlayerState, TimedPlayerState};
+use player_state::TimedPlayerState;
 use uuid::Uuid;
 
 pub mod command;
