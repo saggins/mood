@@ -7,7 +7,7 @@ use std::{
 
 use command::{Command, CommandType};
 use log::{error, info};
-use player_state::PlayerState;
+use player_state::{PlayerState, TimedPlayerState};
 use uuid::Uuid;
 
 pub mod command;
@@ -15,7 +15,7 @@ pub mod player_state;
 
 pub struct Network {
     socket: UdpSocket,
-    player_states: HashMap<Uuid, PlayerState>,
+    player_states: HashMap<Uuid, TimedPlayerState>,
 }
 
 impl Network {
@@ -84,6 +84,14 @@ impl Network {
     }
 
     fn handle_command(&mut self, command: CommandType) {
-        if let CommandType::Data((uuid, player_states)) = command {}
+        if let CommandType::Data((uuid, player_states)) = command {
+            player_states.as_ref().iter().for_each(|player_state| {
+                let player_id = player_state.player_id;
+                if player_id != uuid {
+                    self.player_states
+                        .insert(player_state.player_id, TimedPlayerState::new(*player_state));
+                }
+            });
+        }
     }
 }
