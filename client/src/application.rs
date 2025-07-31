@@ -85,7 +85,10 @@ impl ApplicationHandler for AppState {
                 self.cleanup(event_loop);
             }
             WindowEvent::RedrawRequested => {
-                renderer.update(self.prev_frame_time.unwrap_or_else(Instant::now).elapsed());
+                renderer.update(
+                    self.prev_frame_time.unwrap_or_else(Instant::now).elapsed(),
+                    &self.network_handler,
+                );
                 self.prev_frame_time = Some(Instant::now());
                 match renderer.render() {
                     Ok(_) => {}

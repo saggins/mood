@@ -15,7 +15,7 @@ pub mod player_state;
 
 pub struct Network {
     socket: UdpSocket,
-    player_states: HashMap<Uuid, TimedPlayerState>,
+    pub player_states: HashMap<Uuid, TimedPlayerState>,
 }
 
 impl Network {

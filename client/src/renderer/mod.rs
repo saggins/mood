@@ -24,8 +24,10 @@ use crate::model::cube_texture::{CubeTexture, CubeTextureBuilder};
 use crate::model::depth_texture::DepthTexture;
 use crate::model::map_loader::MapLoader;
 use crate::model::model_instance::RawInstance;
+use crate::model::player_model::PlayerModel;
 use crate::model::texture::TextureBuilder;
 use crate::model::vertex::{LineVertex, Vertex};
+use crate::network::Network;
 
 mod pipeline_factory;
 mod shadow_baker;
@@ -46,6 +48,7 @@ pub struct Renderer {
     depth_texture: DepthTexture,
     collision_manager: CollisionManager,
     shadow_baker: ShadowBaker,
+    player_model_renderer: PlayerModel,
     camera_uniform: CameraUniform,
     camera_buffer: Buffer,
     debug_buffer: Buffer,
@@ -58,6 +61,7 @@ pub struct Renderer {
     debug_render_pipeline: RenderPipeline,
     shadow_render_pipeline: RenderPipeline,
     render_pipeline: RenderPipeline,
+    player_pipeline: RenderPipeline,
 }
 
 impl Renderer {
@@ -66,6 +70,7 @@ impl Renderer {
     const JUMP_STRENGTH: f32 = 1.6;
     pub const FAR_PLANE: f32 = 200.0;
     pub const NEAR_PLANE: f32 = 0.01;
+    pub const MAX_PLAYERS: u8 = 16;
     pub async fn new(window: Arc<Window>, map_file: String) -> Result<Self, String> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
@@ -130,6 +135,12 @@ impl Renderer {
                 &diffuse_texture_layout,
             ],
         );
+        let player_pipeline_layout = PipelineFactory::create_render_pipeline_layout(
+            &device,
+            &[
+                &camera_bind_group_layout, // add lighting for players later
+            ],
+        );
         let skybox_pipeline_layout = PipelineFactory::create_render_pipeline_layout(
             &device,
             &[&skybox_bind_group_layout, &camera_bind_group_layout],
@@ -167,6 +178,7 @@ impl Renderer {
         let player_controller = PlayerController::default();
         let light_ids: Vec<u32> = lights.iter().map(|light| light.id).collect();
         let shadow_baker = ShadowBaker::new(&light_ids, &device);
+        let player_model_renderer = PlayerModel::new(&device, &[]);
 
         // uniforms
         let mut camera_uniform = CameraUniform::new(player.camera.position);
@@ -225,6 +237,22 @@ impl Renderer {
             wgpu::ShaderModuleDescriptor {
                 label: Some("Normal Shader"),
                 source: wgpu::ShaderSource::Wgsl(include_str!("shaders/shader.wgsl").into()),
+            },
+            Some(wgpu::Face::Back),
+            true,
+            wgpu::CompareFunction::LessEqual,
+        );
+
+        let player_pipeline = PipelineFactory::create_render_pipeline(
+            &device,
+            &player_pipeline_layout,
+            config.format,
+            Some(DepthTexture::DEPTH_FORMAT),
+            &[Vertex::desc(), RawInstance::desc()],
+            wgpu::PrimitiveTopology::TriangleList,
+            wgpu::ShaderModuleDescriptor {
+                label: Some("Player Shader"),
+                source: wgpu::ShaderSource::Wgsl(include_str!("shaders/player.wgsl").into()),
             },
             Some(wgpu::Face::Back),
             true,
@@ -306,6 +334,8 @@ impl Renderer {
             shadow_bind_group_layout,
             shadow_bind_group,
             shadow_baker,
+            player_pipeline,
+            player_model_renderer,
         })
     }
 
@@ -372,6 +402,9 @@ impl Renderer {
             for model in &self.models {
                 model.draw(&mut render_pass);
             }
+            render_pass.set_pipeline(&self.player_pipeline);
+            render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            self.player_model_renderer.draw(&mut render_pass);
 
             render_pass.set_pipeline(&self.skybox_render_pipeline);
             render_pass.set_bind_group(0, &self.skybox_bind_group, &[]);
@@ -393,7 +426,16 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn update(&mut self, dt: Duration) {
+    pub fn update(&mut self, dt: Duration, network_handler: &Option<Network>) {
+        if let Some(network_handler) = network_handler {
+            let player_states = network_handler
+                .player_states
+                .values()
+                .cloned()
+                .collect::<Vec<_>>();
+            self.player_model_renderer
+                .update(&self.queue, &player_states);
+        }
         self.player
             .update(dt, &mut self.collision_manager, &mut self.player_controller);
         self.camera_uniform.update_cam(&self.player.camera);
