@@ -36,6 +36,7 @@ impl Network {
         match self.socket.recv_from(&mut buffer) {
             Ok((number_of_bytes, src_addr)) => {
                 if let Ok(command) = Command::deserialize(&buffer[..number_of_bytes]) {
+                    self.player_states.clear();
                     info!("recieved {:?} from {}", command.command_type, src_addr);
                     self.handle_command(command.command_type);
                 }
