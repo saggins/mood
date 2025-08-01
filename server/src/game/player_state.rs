@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -9,11 +7,6 @@ pub struct PlayerState {
     pub position: [f32; 3],
     pub velocity: [f32; 3],
     pub health: u8,
-}
-
-pub struct TimedPlayerState {
-    pub time: Instant,
-    pub player_state: PlayerState,
 }
 
 impl Default for PlayerState {

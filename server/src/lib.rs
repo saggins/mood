@@ -17,6 +17,7 @@ pub struct Server {
     socket: UdpSocket,
     input_commands: VecDeque<InputCommand>,
     player_states: HashMap<SocketAddr, PlayerState>,
+    last_packet_sent: HashMap<SocketAddr, Instant>,
     last_tick: Instant,
     tick_rate: Duration,
     ticks_elapsed: u64,
@@ -26,8 +27,8 @@ struct InputCommand {
     command: Command,
     src_addr: SocketAddr,
 }
-
 impl Server {
+    const MAX_PLAYERS: u8 = 32;
     pub fn new(server_addr: Ipv4Addr, port: u16, tick_rate_in_millis: u64) -> io::Result<Self> {
         let addr = SocketAddr::new(IpAddr::V4(server_addr), port);
         let socket = UdpSocket::bind(addr)?;
@@ -37,6 +38,7 @@ impl Server {
             socket,
             input_commands: VecDeque::new(),
             player_states: HashMap::new(),
+            last_packet_sent: HashMap::new(),
             last_tick: Instant::now(),
             tick_rate: Duration::from_millis(tick_rate_in_millis),
             ticks_elapsed: 0,
@@ -54,6 +56,7 @@ impl Server {
                 self.last_tick = now;
                 self.ticks_elapsed += 1;
                 self.input_commands.clear();
+                self.cull_dead_connections();
                 self.emit_game_state();
             }
             std::thread::sleep(Duration::from_millis(1));
@@ -89,12 +92,17 @@ impl Server {
 
             match command.command_type {
                 CommandType::PlayerJoin => {
-                    self.player_states.entry(src_addr).or_default();
+                    if (self.player_states.len() as u8) < Self::MAX_PLAYERS {
+                        self.player_states.entry(src_addr).or_default();
+                        self.last_packet_sent.insert(src_addr, Instant::now());
+                    }
                 }
                 CommandType::PlayerLeave => {
                     self.player_states.remove(&src_addr);
+                    self.last_packet_sent.remove(&src_addr);
                 }
                 CommandType::PlayerMove { position, velocity } => {
+                    self.last_packet_sent.insert(src_addr, Instant::now());
                     if let Some(player) = self.player_states.get_mut(&src_addr) {
                         player.update(position, velocity);
                     }
@@ -130,5 +138,22 @@ impl Server {
         });
     }
 
-    pub fn cull_dead_connections(&mut self) {}
+    pub fn cull_dead_connections(&mut self) {
+        let addresses_to_remove: Vec<SocketAddr> = self
+            .last_packet_sent
+            .iter()
+            .filter(|(_, time)| time.elapsed() > Duration::from_secs(5))
+            .map(|(&src_addr, _)| src_addr)
+            .collect();
+
+        for addr in &addresses_to_remove {
+            info!("Culling connection from {addr}");
+            self.last_packet_sent.remove(addr);
+            self.player_states.remove(addr);
+        }
+
+        if !addresses_to_remove.is_empty() {
+            info!("Current connections: {:?}", self.player_states.keys());
+        }
+    }
 }
