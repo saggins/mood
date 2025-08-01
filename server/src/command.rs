@@ -1,6 +1,7 @@
 use std::error::Error;
 use std::rc::Rc;
 
+use log::Level;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -35,5 +36,14 @@ impl Command {
     pub fn deserialize(data: &[u8]) -> Result<Self, Box<dyn Error>> {
         let command: (Command, _) = bserde::decode_from_slice(data, Self::CONFIG)?;
         Ok(command.0)
+    }
+}
+
+impl CommandType {
+    pub fn log_level(&self) -> Level {
+        match self {
+            Self::PlayerMove { .. } => Level::Debug,
+            _ => Level::Info,
+        }
     }
 }

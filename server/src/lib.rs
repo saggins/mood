@@ -8,7 +8,7 @@ use std::{
 
 use command::{Command, CommandType};
 use game::player_state::PlayerState;
-use log::{error, info};
+use log::{error, info, log, warn};
 
 mod command;
 mod game;
@@ -67,11 +67,16 @@ impl Server {
         match self.socket.recv_from(buffer) {
             Ok((number_of_bytes, src_addr)) => {
                 if let Ok(command) = Command::deserialize(&buffer[..number_of_bytes]) {
-                    info!("{} sent {:?}", src_addr, command.command_type);
+                    log!(
+                        command.command_type.log_level(),
+                        "{} sent {:?}",
+                        src_addr,
+                        command.command_type
+                    );
                     self.input_commands
                         .push_back(InputCommand { command, src_addr });
                 } else {
-                    error!("Invalid command sent!");
+                    warn!("{src_addr} sent an invalid command");
                 }
             }
             Err(e) if e.kind() != io::ErrorKind::WouldBlock => {
