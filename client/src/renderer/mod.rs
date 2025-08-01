@@ -70,7 +70,7 @@ impl Renderer {
     const JUMP_STRENGTH: f32 = 1.6;
     pub const FAR_PLANE: f32 = 200.0;
     pub const NEAR_PLANE: f32 = 0.01;
-    pub const MAX_PLAYERS: u8 = 16;
+    pub const MAX_PLAYERS: u8 = 32;
     pub async fn new(window: Arc<Window>, map_file: String) -> Result<Self, String> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,

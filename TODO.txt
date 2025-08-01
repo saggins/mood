@@ -1,5 +1,5 @@
  - multiplayer / server
-  - Add connection culling on server side
   - Find better way to have dynamic buffer size on client isntead of setting a MAX_PLAYERS
+  - Better player models / rotations
  - gun + projectiles
  - *** fix hardcoded shadow map far plane ***
