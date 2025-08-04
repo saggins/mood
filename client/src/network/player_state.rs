@@ -8,6 +8,8 @@ pub struct PlayerState {
     pub player_id: Uuid,
     pub position: [f32; 3],
     pub velocity: [f32; 3],
+    pub pitch: f32,
+    pub yaw: f32,
     pub health: u8,
 }
 

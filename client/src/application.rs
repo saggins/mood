@@ -74,7 +74,12 @@ impl ApplicationHandler for AppState {
             network_handler.poll();
             let player = renderer.get_player();
             if network_handler
-                .send_player_move(player.position.into(), player.velocity.into())
+                .send_player_move(
+                    player.position.into(),
+                    player.velocity.into(),
+                    player.pitch,
+                    player.yaw,
+                )
                 .is_err()
             {
                 error!("Server-Client desync!");

@@ -72,9 +72,20 @@ impl Network {
         Ok(())
     }
 
-    pub fn send_player_move(&self, position: [f32; 3], velocity: [f32; 3]) -> io::Result<()> {
+    pub fn send_player_move(
+        &self,
+        position: [f32; 3],
+        velocity: [f32; 3],
+        pitch: f32,
+        yaw: f32,
+    ) -> io::Result<()> {
         let movement_command = Command {
-            command_type: command::CommandType::PlayerMove { position, velocity },
+            command_type: command::CommandType::PlayerMove {
+                position,
+                velocity,
+                pitch,
+                yaw,
+            },
             time: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap_or_default()

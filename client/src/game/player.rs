@@ -18,8 +18,8 @@ pub struct Player {
     hitbox: BoundingBox,
     is_on_ground: bool,
     pub camera: Camera,
-    yaw: f32,
-    pitch: f32,
+    pub yaw: f32,
+    pub pitch: f32,
 }
 
 impl Player {

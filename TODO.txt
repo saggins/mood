@@ -1,5 +1,4 @@
  - multiplayer / server
-  - Find better way to have dynamic buffer size on client isntead of setting a MAX_PLAYERS
   - Better player models / rotations
  - gun + projectiles
  - *** fix hardcoded shadow map far plane ***

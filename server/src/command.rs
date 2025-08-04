@@ -22,6 +22,8 @@ pub enum CommandType {
     PlayerMove {
         position: [f32; 3],
         velocity: [f32; 3],
+        pitch: f32,
+        yaw: f32,
     },
     Data((Uuid, Rc<[PlayerState]>)),
 }

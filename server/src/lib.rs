@@ -106,10 +106,15 @@ impl Server {
                     self.player_states.remove(&src_addr);
                     self.last_packet_sent.remove(&src_addr);
                 }
-                CommandType::PlayerMove { position, velocity } => {
+                CommandType::PlayerMove {
+                    position,
+                    velocity,
+                    pitch,
+                    yaw,
+                } => {
                     self.last_packet_sent.insert(src_addr, Instant::now());
                     if let Some(player) = self.player_states.get_mut(&src_addr) {
-                        player.update(position, velocity);
+                        player.update(position, velocity, pitch, yaw);
                     }
                 }
                 _ => {}

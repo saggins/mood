@@ -1,4 +1,4 @@
-use nalgebra::{Matrix3, Matrix4, Point3, Vector3};
+use nalgebra::{Matrix3, Matrix4, Point3, Rotation3, Vector3};
 use wgpu::{Buffer, Device, Queue, RenderPass};
 
 use crate::{network::player_state::TimedPlayerState, renderer::Renderer};
@@ -266,12 +266,25 @@ impl PlayerModel {
     }
 
     fn compute_instance(timed_player_state: &TimedPlayerState) -> RawInstance {
-        let player_state = timed_player_state.player_state;
         let dt = timed_player_state.time.elapsed().as_secs_f32();
+        let player_state = timed_player_state.player_state;
+        let yaw_rotation = Matrix4::from(Rotation3::from_axis_angle(
+            &Vector3::y_axis(),
+            player_state.yaw,
+        ));
+        let pitch_rotation = Matrix4::from(Rotation3::from_axis_angle(
+            &Vector3::x_axis(),
+            -player_state.pitch,
+        ));
+        let rotation_mat = yaw_rotation * pitch_rotation;
+
         let new_pos =
             Point3::from(player_state.position) + Vector3::from(player_state.velocity) * dt;
+        let translation_mat = Matrix4::new_translation(&new_pos.coords);
+
+        let model_mat = translation_mat * rotation_mat;
         RawInstance {
-            model_mat: Matrix4::new_translation(&new_pos.coords).into(),
+            model_mat: model_mat.into(),
             normal_mat: Matrix3::identity().into(),
         }
     }
