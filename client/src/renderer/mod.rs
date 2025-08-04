@@ -68,9 +68,11 @@ impl Renderer {
     const MOVE_SPEED: f32 = 2.0;
     const SENSITIVITY: f32 = 0.3;
     const JUMP_STRENGTH: f32 = 1.6;
+    const HITBOX_WIDTH: f32 = 0.1;
     pub const FAR_PLANE: f32 = 200.0;
     pub const NEAR_PLANE: f32 = 0.01;
     pub const MAX_PLAYERS: u8 = 32;
+    pub const CAMERA_HEIGHT: f32 = 0.5;
     pub async fn new(window: Arc<Window>, map_file: String) -> Result<Self, String> {
         let instance = wgpu::Instance::new(&wgpu::InstanceDescriptor {
             backends: wgpu::Backends::PRIMARY,
@@ -158,9 +160,11 @@ impl Renderer {
         let collision_manager = map.collision_manager;
         let debug_lines = map.debug_lines;
         let debug_lines_len = debug_lines.len() as u32;
+        let player_head_mesh = map.player_head_mesh;
+        let player_body_mesh = map.player_body_mesh;
         let camera = Camera {
-            position: Point3::new(1.0, 0.5, 1.0),
-            target: Point3::new(0.0, 0.5, 0.0),
+            position: Point3::new(1.0, Self::CAMERA_HEIGHT, 1.0),
+            target: Point3::new(0.0, Self::CAMERA_HEIGHT, 0.0),
             up: Vector3::new(0.0, 1.0, 0.0),
             aspect: size.width as f32 / size.height as f32,
             fovy: 1.0,
@@ -171,14 +175,15 @@ impl Renderer {
             Self::SENSITIVITY,
             Self::MOVE_SPEED,
             Self::JUMP_STRENGTH,
-            0.1,
-            0.5,
+            Self::HITBOX_WIDTH,
+            Self::CAMERA_HEIGHT,
             camera,
         );
         let player_controller = PlayerController::default();
         let light_ids: Vec<u32> = lights.iter().map(|light| light.id).collect();
         let shadow_baker = ShadowBaker::new(&light_ids, &device);
-        let player_model_renderer = PlayerModel::new(&device, &[]);
+        let player_model_renderer =
+            PlayerModel::new(&device, &[], player_head_mesh, player_body_mesh);
 
         // uniforms
         let mut camera_uniform = CameraUniform::new(player.camera.position);

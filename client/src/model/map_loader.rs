@@ -24,6 +24,8 @@ pub struct Map {
     pub lights: Vec<Light>,
     pub collision_manager: CollisionManager,
     pub debug_lines: Vec<LineVertex>,
+    pub player_head_mesh: Mesh,
+    pub player_body_mesh: Mesh,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -33,6 +35,8 @@ pub struct MapLoader {
     materials: Vec<MaterialLoader>,
     models: Vec<ModelLoader>,
     bounding_boxes: Vec<BoundingBoxLoader>,
+    player_head_mesh: MeshLoader,
+    player_body_mesh: MeshLoader,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -180,7 +184,7 @@ impl MapLoader {
                             &mesh.name,
                             &mut vertices,
                             &mesh.indices,
-                            &mesh.material,
+                            Some(&mesh.material),
                             device,
                         )
                     })
@@ -228,12 +232,53 @@ impl MapLoader {
             })
             .collect();
 
+        let mut player_head_vertices: Vec<Vertex> = self
+            .player_head_mesh
+            .vertices
+            .iter()
+            .map(|vertex| Vertex {
+                position: vertex.position,
+                tex_coords: vertex.tex_coords,
+                normal: vertex.normal,
+                tangent: [0.0; 3],
+                bitangent: [0.0; 3],
+            })
+            .collect();
+
+        let mut player_body_vertices: Vec<Vertex> = self
+            .player_body_mesh
+            .vertices
+            .iter()
+            .map(|vertex| Vertex {
+                position: vertex.position,
+                tex_coords: vertex.tex_coords,
+                normal: vertex.normal,
+                tangent: [0.0; 3],
+                bitangent: [0.0; 3],
+            })
+            .collect();
+        let player_head_mesh = Self::gen_mesh(
+            &self.player_head_mesh.name,
+            &mut player_head_vertices,
+            &self.player_head_mesh.indices,
+            None,
+            device,
+        );
+        let player_body_mesh = Self::gen_mesh(
+            &self.player_body_mesh.name,
+            &mut player_body_vertices,
+            &self.player_body_mesh.indices,
+            None,
+            device,
+        );
         Map {
             skybox_textures,
             collision_manager,
             lights,
             debug_lines,
             models,
+            player_head_mesh,
+            player_body_mesh,
         }
     }
     fn bounding_box_to_line_vertices(bbox: &BoundingBox, color: [f32; 3]) -> Vec<LineVertex> {
@@ -314,7 +359,7 @@ impl MapLoader {
         name: &str,
         vertices: &mut [Vertex],
         indices: &[u16],
-        material: &str,
+        material: Option<&str>,
         device: &Device,
     ) -> Mesh {
         let mut triangles_included = vec![0; vertices.len()];
@@ -361,12 +406,22 @@ impl MapLoader {
             usage: wgpu::BufferUsages::INDEX,
         });
 
-        Mesh {
-            name: String::from(name),
-            vertex_buffer,
-            index_buffer,
-            num_elements: num_indices,
-            material: Some(String::from(material)),
+        if let Some(material) = material {
+            Mesh {
+                name: String::from(name),
+                vertex_buffer,
+                index_buffer,
+                num_elements: num_indices,
+                material: Some(String::from(material)),
+            }
+        } else {
+            Mesh {
+                name: String::from(name),
+                vertex_buffer,
+                index_buffer,
+                num_elements: num_indices,
+                material: None,
+            }
         }
     }
 }
