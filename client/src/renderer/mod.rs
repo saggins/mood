@@ -141,6 +141,7 @@ impl Renderer {
             &device,
             &[
                 &camera_bind_group_layout, // add lighting for players later
+                &point_light_bind_group_layout,
             ],
         );
         let skybox_pipeline_layout = PipelineFactory::create_render_pipeline_layout(
@@ -409,6 +410,7 @@ impl Renderer {
             }
             render_pass.set_pipeline(&self.player_pipeline);
             render_pass.set_bind_group(0, &self.camera_bind_group, &[]);
+            render_pass.set_bind_group(1, &self.point_light_bind_group, &[]);
             self.player_model_renderer.draw(&mut render_pass);
 
             render_pass.set_pipeline(&self.skybox_render_pipeline);

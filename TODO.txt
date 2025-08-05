@@ -1,4 +1,5 @@
  - multiplayer / server
   - Better player models / rotations
+  - shadow mapping for players too
  - gun + projectiles
  - *** fix hardcoded shadow map far plane ***
