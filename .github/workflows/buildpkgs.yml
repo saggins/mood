@@ -1,0 +1,62 @@
+name: build client,server binaries
+on:
+  pull_request:
+    paths:
+      - "flake.nix"
+      - "flake.lock"
+      - "client/src/**"
+      - "server/src/**"
+  push:
+    paths:
+      - "flake.nix"
+      - "flake.lock"
+      - "client/src/**"
+      - "server/src/**"
+  workflow_dispatch:
+permissions:
+  contents: write
+  id-token: write
+jobs:
+  build-all:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: wimpysworld/nothing-but-nix@main
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      - name: build client
+        id: build-client
+        run: |
+          nix --version
+          nix build
+      - name: release client
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          ls -la result/bin
+          pwd
+          if [ -f "result/bin/client" ]; then 
+            gh release create "${GITHUB_RUN_ID}-client" --draft=false --generate-notes
+            gh release upload "${GITHUB_RUN_ID}-client" "result/bin/.client-wrapped" --clobber
+          else
+            echo "No client found, failing job"
+            exit 1
+          fi
+      - name: build server
+        id: build-server
+        run: |
+          nix build .#server
+      - name: release server
+        env:
+          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          if [ -f "result/bin/server" ]; then 
+              gh release create "${GITHUB_RUN_ID}-server" --draft=false --generate-notes
+              gh release upload "${GITHUB_RUN_ID}-server" "result/bin/server" --clobber
+          else
+              echo "No client found, failing job"
+              exit 1
+          fi
