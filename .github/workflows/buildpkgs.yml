@@ -34,7 +34,7 @@ jobs:
           nix build
       - name: release client
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
           ls -la result/bin
           pwd
@@ -51,7 +51,7 @@ jobs:
           nix build .#server
       - name: release server
         env:
-          GITHUB_TOKEN: ${{secrets.GITHUB_TOKEN}}
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
           if [ -f "result/bin/server" ]; then 
               gh release create "${GITHUB_RUN_ID}-server" --draft=false --generate-notes
