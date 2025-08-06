@@ -41,8 +41,8 @@ jobs:
           ls -la result/bin
           pwd
           if [ -f "result/bin/client" ]; then 
-            gh release create "${GITHUB_RUN_ID}-client" --draft=false --generate-notes
-            gh release upload "${GITHUB_RUN_ID}-client" "result/bin/.client-wrapped" --clobber
+            gh release create "${GITHUB_RUN_ID}" --draft=false --generate-notes || true
+            gh release upload "${GITHUB_RUN_ID}" "result/bin/.client-wrapped" --clobber
           else
             echo "No client found, failing job"
             exit 1
@@ -56,8 +56,8 @@ jobs:
           GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
           if [ -f "result/bin/server" ]; then 
-              gh release create "${GITHUB_RUN_ID}-server" --draft=false --generate-notes
-              gh release upload "${GITHUB_RUN_ID}-server" "result/bin/server" --clobber
+              gh release create "${GITHUB_RUN_ID}" --draft=false --generate-notes || true
+              gh release upload "${GITHUB_RUN_ID}" "result/bin/server" --clobber
           else
               echo "No client found, failing job"
               exit 1
