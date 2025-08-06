@@ -27,5 +27,5 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-            gh release create "${GITHUB_RUN_ID}-client" --draft=false --generate-notes
-            gh release upload "${GITHUB_RUN_ID}-client" "flake.nix" --clobber
+            gh release create "client" --draft=false --generate-notes
+            gh release upload "client" "flake.nix" --clobber
