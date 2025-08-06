@@ -22,6 +22,7 @@ jobs:
     permissions:
       contents: write
       id-token: write
+      packages: write
       actions: write
     steps:
       - uses: actions/checkout@v4
