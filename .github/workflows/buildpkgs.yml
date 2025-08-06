@@ -14,14 +14,16 @@ on:
       - "server/src/**"
   workflow_dispatch:
 permissions:
-  contents: write
   id-token: write
+  contents: write
+  packages: write
 jobs:
   build-all:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
       id-token: write
+      contents: write
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - uses: wimpysworld/nothing-but-nix@main
