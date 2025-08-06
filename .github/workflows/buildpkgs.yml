@@ -26,9 +26,39 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v4
+      - uses: wimpysworld/nothing-but-nix@main
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      - name: build client
+        id: build-client
+        run: |
+          nix --version
+          nix build
       - name: release client
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
         run: |
-            gh release create "client" --draft=false --generate-notes
-            gh release upload "client" "flake.nix" --clobber
+          ls -la result/bin
+          pwd
+          if [ -f "result/bin/client" ]; then 
+            gh release create "${GITHUB_RUN_ID}-client" --draft=false --generate-notes
+            gh release upload "${GITHUB_RUN_ID}-client" "result/bin/.client-wrapped" --clobber
+          else
+            echo "No client found, failing job"
+            exit 1
+          fi
+      - name: build server
+        id: build-server
+        run: |
+          nix build .#server
+      - name: release server
+        env:
+          GH_TOKEN: ${{secrets.GITHUB_TOKEN}}
+        run: |
+          if [ -f "result/bin/server" ]; then 
+              gh release create "${GITHUB_RUN_ID}-server" --draft=false --generate-notes
+              gh release upload "${GITHUB_RUN_ID}-server" "result/bin/server" --clobber
+          else
+              echo "No client found, failing job"
+              exit 1
+          fi
